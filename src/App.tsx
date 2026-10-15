@@ -1298,24 +1298,33 @@ export default function App() {
     void fetchAdminDepositAddresses()
   }, [])
 
-  // Fetch real wallet balances and trade history directly from Supabase
+  // Fetch real wallet balances, multi-wallets, and trade history directly from Supabase
   useEffect(() => {
     const client = supabase
     if (!client || !user) return
     let mounted = true
 
     const loadRealData = async () => {
-      // 1. Fetch real wallet balances from public.wallets
+      // 1. Fetch real wallet balances and multi-wallets from public.wallets
       const { data: walletData } = await client
         .from('wallets')
-        .select('live_balance, demo_balance')
+        .select('live_balance, demo_balance, main_wallet, synthetic_wallet, live_market_wallet')
         .eq('user_id', user.id)
         .maybeSingle()
 
       if (mounted && walletData) {
-        if (Number.isFinite(Number(walletData.live_balance))) {
-          setLiveBalance(Number(walletData.live_balance))
-        }
+        const liveBal = Number.isFinite(Number(walletData.live_balance)) ? Number(walletData.live_balance) : 0
+        const mainW = Number.isFinite(Number(walletData.main_wallet)) && Number(walletData.main_wallet) > 0 ? Number(walletData.main_wallet) : liveBal
+        const synthW = Number.isFinite(Number(walletData.synthetic_wallet)) ? Number(walletData.synthetic_wallet) : 0
+        const marketW = Number.isFinite(Number(walletData.live_market_wallet)) ? Number(walletData.live_market_wallet) : 0
+
+        setLiveBalance(liveBal)
+        setWalletBalances({
+          main: mainW,
+          synthetic: synthW,
+          liveMarket: marketW,
+        })
+
         if (Number.isFinite(Number(walletData.demo_balance))) {
           setDemoBalance(Number(walletData.demo_balance))
         }
@@ -1600,16 +1609,52 @@ export default function App() {
     handleExecuteTrade(signal.direction === 'BUY', signal.symbol, signal.entryPrice)
   }
 
-  // Multi-wallet transfer handler
-  const handleWalletTransfer = (from: 'main' | 'synthetic' | 'liveMarket', to: 'main' | 'synthetic' | 'liveMarket', amount: number) => {
-    setWalletBalances(prev => {
-      const next = { ...prev }
-      next[from] = Math.max(0, prev[from] - amount)
-      next[to] = prev[to] + amount
-      if (to === 'main') setLiveBalance(prev[to] + amount)
-      if (from === 'main') setLiveBalance(Math.max(0, prev[from] - amount))
-      return next
-    })
+  // Multi-wallet internal transfer handler with real Supabase database persistence
+  const handleWalletTransfer = async (from: 'main' | 'synthetic' | 'liveMarket', to: 'main' | 'synthetic' | 'liveMarket', amount: number) => {
+    let newLiveBalance = liveBalance
+    let newMainW = walletBalances.main
+    let newSynthW = walletBalances.synthetic
+    let newMarketW = walletBalances.liveMarket
+
+    if (from === 'main') newMainW = Math.max(0, walletBalances.main - amount)
+    if (from === 'synthetic') newSynthW = Math.max(0, walletBalances.synthetic - amount)
+    if (from === 'liveMarket') newMarketW = Math.max(0, walletBalances.liveMarket - amount)
+
+    if (to === 'main') newMainW = walletBalances.main + amount
+    if (to === 'synthetic') newSynthW = walletBalances.synthetic + amount
+    if (to === 'liveMarket') newMarketW = walletBalances.liveMarket + amount
+
+    if (from === 'main') newLiveBalance = Math.max(0, liveBalance - amount)
+    if (to === 'main') newLiveBalance = liveBalance + amount
+
+    setWalletBalances({ main: newMainW, synthetic: newSynthW, liveMarket: newMarketW })
+    setLiveBalance(newLiveBalance)
+
+    if (supabase && user) {
+      // 1. Save updated multi-wallets to Supabase public.wallets table!
+      await supabase.from('wallets').upsert({
+        user_id: user.id,
+        live_balance: newLiveBalance,
+        main_wallet: newMainW,
+        synthetic_wallet: newSynthW,
+        live_market_wallet: newMarketW,
+        updated_at: new Date().toISOString(),
+      })
+
+      // 2. Insert transaction adjustment ledger log in public.transactions
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'adjustment',
+        amount,
+        total_amount: amount,
+        gateway_network: 'INTERNAL_TRANSFER',
+        reference_code: `TRF_${from.toUpperCase()}_TO_${to.toUpperCase()}`,
+        status: 'approved',
+        admin_notes: `Internal transfer of $${amount.toFixed(2)} from ${from} to ${to} wallet.`,
+      })
+    }
+
+    showNotice(`✅ Transferred $${amount.toFixed(2)} from ${from.toUpperCase()} wallet to ${to.toUpperCase()} wallet! Balance updated in database.`)
   }
 
   // Account Selector Handler (with Auth Login Check for Real Account & Funds Redirection)
