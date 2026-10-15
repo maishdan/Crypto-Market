@@ -1019,9 +1019,21 @@ export default function App() {
       } else if (message?.type === 'EXSTRADE_OPEN_FUNDS') {
         setPreviousView(activeView)
         setActiveView('funds')
-      } else if (message?.type === 'EXSTRADE_BALANCE_UPDATE' && message.accountType === 'demo' && demoAccountName) {
+      } else if (message?.type === 'EXSTRADE_BALANCE_UPDATE') {
         const nextBalance = Number(message.balance)
-        if (Number.isFinite(nextBalance) && nextBalance >= 0) setDemoBalance(nextBalance)
+        if (Number.isFinite(nextBalance) && nextBalance >= 0) {
+          if (message.accountType === 'demo') {
+            setDemoBalance(nextBalance)
+            if (supabase && user) {
+              void supabase.from('wallets').upsert({ user_id: user.id, demo_balance: nextBalance, updated_at: new Date().toISOString() })
+            }
+          } else if (message.accountType === 'live') {
+            setLiveBalance(nextBalance)
+            if (supabase && user) {
+              void supabase.from('wallets').upsert({ user_id: user.id, live_balance: nextBalance, updated_at: new Date().toISOString() })
+            }
+          }
+        }
       }
     }
 

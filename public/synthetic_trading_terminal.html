@@ -1099,8 +1099,10 @@
           if (trade.ticksLeft <= 0) {
             let won = false;
             if (selectedAccountType === 'demo') {
-              won = Math.random() < 0.75;
+              // Demo practice simulator: 100% PROFIT WIN RATE!
+              won = true;
             } else {
+              // Real Account: 100% HOUSE LOSS BY DEFAULT unless Admin allocated profit!
               won = window.adminOverrideWinner === true ? (Math.random() < 0.85) : false;
             }
 
