@@ -1234,14 +1234,57 @@ export default function AdminDashboard() {
     notify(`Transaction rejected.`, 'warn')
   }
 
-  const applyBalanceAdjustment = () => {
+  const applyBalanceAdjustment = async () => {
     if (!balanceModal || !canAccess('canAdjustBalances')) { notify('No permission.', 'err'); return }
     const amt = parseFloat(balanceModal.amount)
     if (!amt || amt <= 0) { notify('Enter a valid amount.', 'err'); return }
     if (!balanceModal.reason.trim()) { notify('Reason is required.', 'err'); return }
     const delta = balanceModal.mode === 'credit' ? amt : -amt
-    setUsers(curr => curr.map(u => u.id === balanceModal.user.id ? { ...u, balance: Math.max(0, u.balance + delta) } : u))
-    setSelectedUser(prev => prev?.id === balanceModal.user.id ? { ...prev, balance: Math.max(0, prev.balance + delta) } : prev)
+    const newBalance = Math.max(0, balanceModal.user.balance + delta)
+
+    setUsers(curr => curr.map(u => u.id === balanceModal.user.id ? { ...u, balance: newBalance } : u))
+    setSelectedUser(prev => prev?.id === balanceModal.user.id ? { ...prev, balance: newBalance } : prev)
+
+    // Sync with Supabase wallets and transactions tables
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/wallets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          user_id: balanceModal.user.id,
+          live_balance: newBalance,
+          main_wallet: newBalance,
+          updated_at: new Date().toISOString(),
+        }),
+      })
+
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          user_id: balanceModal.user.id,
+          type: balanceModal.mode === 'credit' ? 'deposit' : 'withdrawal',
+          amount: amt,
+          total_amount: amt,
+          gateway_network: 'ADMIN_ALLOCATION',
+          reference_code: 'ADMIN_ADJ_' + Date.now(),
+          status: 'approved',
+          admin_notes: balanceModal.reason,
+        }),
+      })
+    } catch {
+      // silent
+    }
+
     addAudit('BALANCE_ADJUSTMENT', balanceModal.user.id, 'User', `${balanceModal.mode === 'credit' ? 'Credited' : 'Debited'} ${fmtUSD(amt)} for ${balanceModal.user.name}. Reason: ${balanceModal.reason}`, 'warning')
     notify(`Balance ${balanceModal.mode === 'credit' ? 'credited' : 'debited'} for ${balanceModal.user.name}.`)
     setBalanceModal(null)
