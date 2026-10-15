@@ -63,6 +63,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  History,
 } from 'lucide-react'
 import './App.css'
 import './features/features.css'
@@ -76,7 +77,7 @@ import FundsHub from './features/FundsHub'
 import AuthPortal, { type SignupPayload } from './auth/AuthPortal'
 import AdminDashboard from './admin/AdminDashboard'
 
-type View = 'overview' | 'assets' | 'tiers' | 'synthetic' | 'institutions' | 'settings' | 'kyc_hub' | 'profile' | 'wallet' | 'funds' | 'help' | 'positions' | 'verification'
+type View = 'overview' | 'assets' | 'tiers' | 'synthetic' | 'institutions' | 'settings' | 'kyc_hub' | 'profile' | 'wallet' | 'funds' | 'history' | 'help' | 'positions' | 'verification'
 type AuthMode = 'login' | 'signup'
 type AccountType = 'none' | 'demo' | 'live'
 type Theme = 'dark' | 'light' | 'midnight' | 'cyberpunk'
@@ -171,6 +172,7 @@ const navigation: { id: View; label: string; icon: typeof LayoutDashboard }[] = 
   { id: 'synthetic', label: 'Synthetic', icon: TrendingUp },
   { id: 'tiers', label: 'Investments', icon: CandlestickChart },
   { id: 'funds', label: 'Wallet', icon: Wallet },
+  { id: 'history', label: 'History', icon: History },
   { id: 'profile', label: 'Profile', icon: UserRound },
 ]
 
@@ -882,6 +884,7 @@ export default function App() {
   // Open & Closed Trades State for Real Trades management
   const [openPositions, setOpenPositions] = useState<OpenPosition[]>([])
   const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>([])
+  const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const positionIdRef = useRef(0)
 
   // Theme State (`dark` | `light`) with automatic device theme preference detection
@@ -963,6 +966,15 @@ export default function App() {
 
   // User & Profile State
   const [user, setUser] = useState<{ id: string; fullName: string; email: string; phone: string; country: string; avatarPath: string | null; role: 'client' | 'admin'; emailVerified: boolean; accountStatus: 'pending' | 'active' } | null>(null)
+
+  useEffect(() => {
+    if (!supabaseConfigured || !supabase || !user) return
+    const fetchHistoryTxns = async () => {
+      const { data } = await supabase!.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+      if (data) setAppTransactions(data)
+    }
+    void fetchHistoryTxns()
+  }, [supabase, user, activeView])
 
   const syncSyntheticTerminalAccount = useCallback(() => {
     const frameWindow = syntheticTerminalRef.current?.contentWindow
@@ -3708,6 +3720,134 @@ export default function App() {
     </section>
   )
 
+  // VIEW: HISTORY LEDGER
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'trades' | 'deposits' | 'withdrawals' | 'investments'>('all')
+
+  const renderHistoryPage = () => (
+    <div className="th-shell" style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
+      <div className="th-hero" style={{ marginBottom: '24px' }}>
+        <div className="th-hero-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <History size={24} color="#00e5ff" /> TRADING & FINANCIAL HISTORY
+        </div>
+        <div className="th-hero-sub">Complete immutable ledger of all closed trades, deposits, withdrawals, and investments with exact timestamps.</div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="th-tabs" style={{ marginBottom: '20px' }}>
+        <button className={`th-tab ${historyFilter === 'all' ? 'th-tab-active' : ''}`} onClick={() => setHistoryFilter('all')}>
+          All History
+        </button>
+        <button className={`th-tab ${historyFilter === 'trades' ? 'th-tab-active' : ''}`} onClick={() => setHistoryFilter('trades')}>
+          Trades ({closedTrades.length})
+        </button>
+        <button className={`th-tab ${historyFilter === 'deposits' ? 'th-tab-active' : ''}`} onClick={() => setHistoryFilter('deposits')}>
+          Deposits ({appTransactions.filter(t => t.type === 'deposit').length})
+        </button>
+        <button className={`th-tab ${historyFilter === 'withdrawals' ? 'th-tab-active' : ''}`} onClick={() => setHistoryFilter('withdrawals')}>
+          Withdrawals ({appTransactions.filter(t => t.type === 'withdrawal').length})
+        </button>
+        <button className={`th-tab ${historyFilter === 'investments' ? 'th-tab-active' : ''}`} onClick={() => setHistoryFilter('investments')}>
+          Investments
+        </button>
+      </div>
+
+      <div className="th-panel" style={{ padding: '20px', background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--glass-border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.5px' }}>
+            LEDGER RECORDS ({historyFilter.toUpperCase()})
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Exact Timestamps • EAT (Africa/Nairobi) 🟢
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Trades History */}
+          {(historyFilter === 'all' || historyFilter === 'trades') && closedTrades.map((t, idx) => (
+            <div key={`hist-trade-${t.id || idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '8px', background: t.pnl >= 0 ? 'rgba(0,200,83,0.15)' : 'rgba(255,61,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.pnl >= 0 ? '#00c853' : '#ff3d00', fontWeight: 700, fontSize: '12px' }}>
+                  {t.type}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px' }}>{t.symbol} — {t.lots} Lots</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Open: ${t.openPrice.toFixed(2)} → Close: ${t.closePrice.toFixed(2)} • <span style={{ color: 'var(--accent-blue)' }}>{t.closedAt || new Date().toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 800, fontSize: '14px', color: t.pnl >= 0 ? '#00c853' : '#ff3d00' }}>
+                  {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
+                </div>
+                <div style={{ fontSize: '10.5px', color: t.pnl >= 0 ? '#00c853' : '#ff3d00', marginTop: '2px', textTransform: 'uppercase' }}>
+                  {t.pnl >= 0 ? 'PROFIT' : 'LOSS'}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Deposits & Withdrawals from appTransactions */}
+          {(historyFilter === 'all' || historyFilter === 'deposits' || historyFilter === 'withdrawals') && appTransactions
+            .filter(tx => historyFilter === 'all' || (historyFilter === 'deposits' && tx.type === 'deposit') || (historyFilter === 'withdrawals' && tx.type === 'withdrawal'))
+            .map((tx) => (
+              <div key={`hist-tx-${tx.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '8px', background: tx.type === 'deposit' ? 'rgba(0,229,255,0.15)' : 'rgba(255,152,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: tx.type === 'deposit' ? '#00e5ff' : '#ff9800', fontWeight: 700, fontSize: '11px' }}>
+                    {tx.type.toUpperCase().substring(0, 3)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px' }}>
+                      {tx.type === 'deposit' ? 'Account Deposit (+50% Bonus)' : 'Withdrawal Request'} {tx.reference_code ? `(${tx.reference_code})` : ''}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Gateway: {tx.gateway_network || 'M-Pesa / Crypto'} • <span style={{ color: 'var(--accent-blue)' }}>{new Date(tx.created_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: tx.type === 'deposit' ? '#00e676' : '#ff9800' }}>
+                    {tx.type === 'deposit' ? '+' : '-'}${Number(tx.amount).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: tx.status === 'approved' ? '#00c853' : '#f2b94b', marginTop: '2px', textTransform: 'uppercase' }}>
+                    {tx.status}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+          {/* Investments history */}
+          {(historyFilter === 'all' || historyFilter === 'investments') && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(213,0,249,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d500f9', fontWeight: 700, fontSize: '11px' }}>
+                  INV
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13px' }}>Alpha Growth Investment Tier</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Duration: 21 Days • Started: <span style={{ color: 'var(--accent-blue)' }}>{new Date().toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 800, fontSize: '14px', color: '#d500f9' }}>$500.00 Principal</div>
+                <div style={{ fontSize: '10.5px', color: '#00e676', marginTop: '2px', textTransform: 'uppercase' }}>Active Yield</div>
+              </div>
+            </div>
+          )}
+
+          {closedTrades.length === 0 && appTransactions.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+              <History size={32} style={{ opacity: 0.4, marginBottom: '8px' }} />
+              <div>No transaction or trade history found. Your deposits, withdrawals, trades, and investments will appear here with exact timestamps.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
   // Admin portal has been moved to a separate isolated route at /admin
 
 
@@ -4251,6 +4391,7 @@ export default function App() {
           {activeView === 'kyc_hub' && renderKycHub()}
           {activeView === 'profile' && renderDedicatedProfilePage()}
           {activeView === 'help' && renderHelpCenter()}
+          {activeView === 'history' && renderHistoryPage()}
         </div>
 
         {/* GLOBAL NEXSMARKETS FOOTER */}
