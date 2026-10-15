@@ -1352,13 +1352,14 @@ export default function App() {
 
       if (mounted && walletData) {
         const liveBal = Number.isFinite(Number(walletData.live_balance)) ? Number(walletData.live_balance) : 0
-        const mainW = Number.isFinite(Number(walletData.main_wallet)) && Number(walletData.main_wallet) > 0 ? Number(walletData.main_wallet) : liveBal
+        const mainW = Number.isFinite(Number(walletData.main_wallet)) ? Number(walletData.main_wallet) : 0
+        const effectiveLive = Math.max(liveBal, mainW)
         const synthW = Number.isFinite(Number(walletData.synthetic_wallet)) ? Number(walletData.synthetic_wallet) : 0
         const marketW = Number.isFinite(Number(walletData.live_market_wallet)) ? Number(walletData.live_market_wallet) : 0
 
-        setLiveBalance(liveBal)
+        setLiveBalance(effectiveLive)
         setWalletBalances({
-          main: mainW,
+          main: mainW > 0 ? mainW : effectiveLive,
           synthetic: synthW,
           liveMarket: marketW,
         })
