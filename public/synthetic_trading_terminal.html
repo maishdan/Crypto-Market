@@ -1151,19 +1151,6 @@
 
       updateRunningIndexesUI();
       renderLogTable();
-              const returnAmount = Number((trade.stake + (trade.stake * trade.mult) + (trade.executionNoise || 0)).toFixed(2));
-              accountBalance += returnAmount;
-              accountBalance = Number(accountBalance.toFixed(2));
-              const display = document.getElementById('accountBalance');
-              if (display) {
-                display.textContent = '$' + accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USD';
-              }
-              syncBalanceToParent();
-            }
-          }
-        }
-      });
-      renderLogTable();
     }
 
     // Admin Profit Allocation Sync Listener
