@@ -341,11 +341,13 @@
       </div>
 
       <!-- Live Chart Canvas Wrapper -->
-      <div id="chartCanvasWrapper" class="flex-1 relative w-full h-full p-2 pb-20">
+      <div id="chartCanvasWrapper" class="flex-1 relative w-full h-full min-h-[420px]">
         <button type="button" onclick="toggleChartFullscreen()" class="absolute top-3 right-3 z-20 bg-gray-900/80 border border-gray-700/80 text-teal-400 hover:text-white px-2.5 py-1 rounded-lg text-xs font-semibold shadow-lg backdrop-blur-md transition flex items-center gap-1.5">
           <i class="fa-solid fa-expand" id="fullscreenIcon"></i> <span id="fullscreenText">Fullscreen</span>
         </button>
-        <canvas id="liveTickChart" class="w-full h-full block"></canvas>
+        <div class="absolute inset-0 p-3 pb-24">
+          <canvas id="liveTickChart" class="w-full h-full block"></canvas>
+        </div>
 
         <!-- RUNNING INDEXES BAR (Overlayed at Bottom over Chart, extending across like Deriv) -->
         <div class="absolute bottom-3 left-3 right-3 md:right-auto z-20 bg-[#0c1018]/92 border border-gray-800/90 backdrop-blur-md rounded-xl p-3 flex items-center justify-between md:justify-start gap-4 shadow-2xl overflow-x-auto">
