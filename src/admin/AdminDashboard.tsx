@@ -12,6 +12,7 @@ import './AdminDashboard.css'
 import '../features/features.css'
 import AdminChatDesk from '../features/AdminChatDesk'
 import { supabase } from '../lib/supabase'
+import AuthPortal, { type SignupPayload } from '../auth/AuthPortal'
 
 // ─── Supabase config ──────────────────────────────────────────────────────────
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL      as string
@@ -372,28 +373,98 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     void checkAdminSession()
   }, [currentUser])
 
-  // Session timeout (15 min inactivity)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const resetTimeout = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    timeoutRef.current = setTimeout(() => {
-      setPhase('login')
-      setCurrentAdmin(null)
-    }, 15 * 60 * 1000)
-  }, [])
+  const [authSubmitting, setAuthSubmitting] = useState(false)
 
-  useEffect(() => {
-    if (phase === 'dashboard') {
-      window.addEventListener('mousemove', resetTimeout)
-      window.addEventListener('keydown', resetTimeout)
-      resetTimeout()
-      return () => {
-        window.removeEventListener('mousemove', resetTimeout)
-        window.removeEventListener('keydown', resetTimeout)
-        if (timeoutRef.current) clearTimeout(timeoutRef.current)
+  const handleAuthLogin = async (loginEmail: string, loginPw: string): Promise<string | null> => {
+    if (!supabase) return 'Supabase client is not initialized.'
+    setAuthSubmitting(true)
+    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPw })
+    setAuthSubmitting(false)
+    if (error) {
+      if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('credentials')) {
+        return 'Incorrect email or password.'
+      }
+      return error.message
+    }
+    const u = data.user
+    if (u) {
+      const isAdmin = u.app_metadata?.role === 'admin' || u.user_metadata?.role === 'admin'
+      if (isAdmin) {
+        setCurrentAdmin({
+          id: u.id,
+          name: String(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Protected Admin'),
+          email: u.email || 'admin@nexsmarkets.com',
+          role: 'super_admin',
+          permissions: superAdminPermissions,
+          isProtected: true,
+          addedAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          status: 'active',
+          ipWhitelist: [],
+        })
+        return null
+      } else {
+        window.location.href = '/'
+        return null
       }
     }
-  }, [phase, resetTimeout])
+    return null
+  }
+
+  const handleAuthSignup = async (payload: SignupPayload): Promise<string | null> => {
+    if (!supabase) return 'Supabase is not configured.'
+    setAuthSubmitting(true)
+    const { data, error } = await supabase.auth.signUp({
+      email: payload.email,
+      password: payload.password,
+      options: {
+        data: {
+          full_name: payload.fullName,
+          username: payload.username,
+          phone: payload.phone,
+          country: payload.country,
+        },
+      },
+    })
+    setAuthSubmitting(false)
+    if (error) return error.message
+    if (data.user) {
+      const isAdmin = data.user.app_metadata?.role === 'admin' || data.user.user_metadata?.role === 'admin'
+      if (isAdmin) {
+        setCurrentAdmin({
+          id: data.user.id,
+          name: payload.fullName || 'Protected Admin',
+          email: payload.email,
+          role: 'super_admin',
+          permissions: superAdminPermissions,
+          isProtected: true,
+          addedAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          status: 'active',
+          ipWhitelist: [],
+        })
+        return null
+      }
+    }
+    window.location.href = '/'
+    return null
+  }
+
+  const handleAuthDemo = () => { window.location.href = '/' }
+  const handleAuthGoogle = async () => {
+    if (supabase) {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      })
+    }
+  }
+  const handleAuthForgot = async (emailStr: string) => {
+    if (supabase) {
+      await supabase.auth.resetPasswordForEmail(emailStr, { redirectTo: window.location.origin })
+      notify(`Password reset link sent to ${emailStr}`)
+    }
+  }
 
   // Data state
   const [section, setSection] = useState<AdminSection>(() => {
@@ -1561,22 +1632,15 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
 
   if (!currentAdmin) {
     return (
-      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', background: '#090d16', color: '#fff', padding: '20px' }}>
-        <div style={{ background: '#101828', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '20px', padding: '36px', maxWidth: '440px', width: '100%', textAlign: 'center' }}>
-          <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 52, height: 52, borderRadius: '12px', margin: '0 auto 16px', objectFit: 'cover' }} />
-          <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px', color: '#fff' }}>Admin Login Required</h2>
-          <p style={{ fontSize: '13px', color: '#6b85a8', lineHeight: '1.6', marginBottom: '24px' }}>
-            To access the Admin Dashboard, please sign in with an authorized Administrator account on the main login portal.
-          </p>
-          <button
-            className="sa-btn sa-btn-primary sa-btn-full"
-            onClick={() => window.location.href = '/'}
-            style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700 }}
-          >
-            Go to Main Login Portal &rarr;
-          </button>
-        </div>
-      </div>
+      <AuthPortal
+        onLogin={handleAuthLogin}
+        onSignup={handleAuthSignup}
+        onDemo={handleAuthDemo}
+        onGoogle={handleAuthGoogle}
+        onForgot={handleAuthForgot}
+        isSubmitting={authSubmitting}
+        notice={toast?.msg || ''}
+      />
     )
   }
 
