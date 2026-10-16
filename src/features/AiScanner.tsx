@@ -90,8 +90,11 @@ export default function AiScanner({ symbol, currentPrice, onAutoTrade, pricePrec
       setSignal(newSignal)
       setHistory(h => [newSignal, ...h].slice(0, 20))
       setScanPhase('result')
+      if (autoScan) {
+        onAutoTrade(newSignal)
+      }
     }, 1800)
-  }, [scanPhase, symbol, currentPrice])
+  }, [scanPhase, symbol, currentPrice, autoScan, onAutoTrade])
 
   useEffect(() => {
     if (!autoScan) {

