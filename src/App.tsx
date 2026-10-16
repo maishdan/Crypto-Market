@@ -3138,10 +3138,10 @@ export default function App() {
                       </td>
                       <td><strong>{pos.lots}</strong></td>
                       <td>${pos.openPrice.toFixed(precision)}</td>
-                      <td>${currentPrice.toFixed(precision)}</td>
+                      <td className="pnl-live-ticker">${currentPrice.toFixed(precision)}</td>
                       <td>${pos.margin.toFixed(2)}</td>
                       <td>
-                        <strong className={pos.profit >= 0 ? 'ticker-up' : 'ticker-down'} style={{ fontSize: '13px', color: pos.profit >= 0 ? '#00e676' : '#ff1744', fontWeight: 800 }}>
+                        <strong className={`pnl-live-ticker ${pos.profit >= 0 ? 'ticker-up' : 'ticker-down'}`} style={{ fontSize: '13px', color: pos.profit >= 0 ? '#00e676' : '#ff1744', fontWeight: 800 }}>
                           {pos.profit >= 0 ? `+$${pos.profit.toFixed(2)}` : `-$${Math.abs(pos.profit).toFixed(2)}`}
                         </strong>
                       </td>

@@ -5539,4 +5539,15 @@ body.theme-light .page-loader-bar {
   100% { transform: translateX(0%); }
 }
 
+@keyframes pnlTickPulse {
+  0% { opacity: 0.85; transform: scale(0.99); }
+  50% { opacity: 1; transform: scale(1.01); }
+  100% { opacity: 0.85; transform: scale(0.99); }
+}
+
+.pnl-live-ticker {
+  display: inline-block;
+  animation: pnlTickPulse 1.2s ease-in-out infinite;
+}
+
 
