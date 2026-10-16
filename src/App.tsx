@@ -959,42 +959,24 @@ export default function App() {
     setWalletBalances(w => ({ ...w, main: liveBalance }))
   }, [liveBalance])
 
-<<<<<<< HEAD
-  // Open & Closed Trades State for Real Trades management with localStorage & Supabase persistence
-  const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const saved = localStorage.getItem('app_open_positions')
-=======
   // Open & Closed Trades State for Real Trades management with persistent localStorage
   const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
     try {
       const saved = localStorage.getItem('exstrade_open_positions')
->>>>>>> cf30f64d4762a02bfc415f484bc3e2c761e0bac5
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
-<<<<<<< HEAD
-
-  const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const saved = localStorage.getItem('app_closed_trades')
-=======
   const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
     try {
       const saved = localStorage.getItem('exstrade_closed_trades')
->>>>>>> cf30f64d4762a02bfc415f484bc3e2c761e0bac5
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
 
-<<<<<<< HEAD
-=======
   useEffect(() => {
     localStorage.setItem('exstrade_open_positions', JSON.stringify(openPositions))
   }, [openPositions])
@@ -1002,7 +984,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('exstrade_closed_trades', JSON.stringify(closedTrades))
   }, [closedTrades])
->>>>>>> cf30f64d4762a02bfc415f484bc3e2c761e0bac5
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
   const positionIdRef = useRef(0)
