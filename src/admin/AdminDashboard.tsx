@@ -375,7 +375,35 @@ export default function AdminDashboard() {
   }, [phase, resetTimeout])
 
   // Data state
-  const [section, setSection] = useState<AdminSection>('overview')
+  const [section, setSection] = useState<AdminSection>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#admin/', '').replace('#', '').trim()
+      const validSections: AdminSection[] = ['overview', 'users', 'kyc', 'finance', 'security', 'admins', 'audit', 'settings', 'support', 'gateway']
+      if (validSections.includes(hash as AdminSection)) return hash as AdminSection
+      const saved = localStorage.getItem('admin_active_section') as AdminSection | null
+      if (saved && validSections.includes(saved)) return saved
+    }
+    return 'overview'
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = `#admin/${section}`
+      localStorage.setItem('admin_active_section', section)
+    }
+  }, [section])
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#admin/', '').replace('#', '').trim() as AdminSection
+      const validSections: AdminSection[] = ['overview', 'users', 'kyc', 'finance', 'security', 'admins', 'audit', 'settings', 'support', 'gateway']
+      if (validSections.includes(hash)) {
+        setSection(hash)
+      }
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
   const [admins, setAdmins] = useState<AdminUser[]>(initialAdmins)
   const [users, setUsers] = useState<PlatformUser[]>(initialUsers)
   const [usersLoading, setUsersLoading] = useState(false)

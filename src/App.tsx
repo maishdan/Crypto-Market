@@ -777,7 +777,35 @@ function TradingViewCandlestickCanvas({
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<View>('synthetic')
+  const [activeView, setActiveView] = useState<View>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '').trim()
+      const validViews: View[] = ['overview', 'assets', 'tiers', 'synthetic', 'institutions', 'settings', 'kyc_hub', 'profile', 'wallet', 'funds', 'help', 'positions', 'verification', 'history']
+      if (validViews.includes(hash as View)) return hash as View
+      const saved = localStorage.getItem('app_active_view') as View | null
+      if (saved && validViews.includes(saved)) return saved
+    }
+    return 'synthetic'
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = activeView
+      localStorage.setItem('app_active_view', activeView)
+    }
+  }, [activeView])
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').trim() as View
+      const validViews: View[] = ['overview', 'assets', 'tiers', 'synthetic', 'institutions', 'settings', 'kyc_hub', 'profile', 'wallet', 'funds', 'help', 'positions', 'verification', 'history']
+      if (validViews.includes(hash)) {
+        setActiveView(hash)
+      }
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
   const [previousView, setPreviousView] = useState<View>('synthetic')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [modal, setModal] = useState<'deposit' | 'withdraw' | 'pine_script' | 'indicator_menu' | 'order' | 'create_demo' | 'trade_outcome' | 'withdrawal_success' | null>(null)
@@ -884,12 +912,76 @@ export default function App() {
     setWalletBalances(w => ({ ...w, main: liveBalance }))
   }, [liveBalance])
 
-  // Open & Closed Trades State for Real Trades management
-  const [openPositions, setOpenPositions] = useState<OpenPosition[]>([])
-  const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>([])
+  // Open & Closed Trades State for Real Trades management with localStorage & Supabase persistence
+  const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('app_open_positions')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('app_closed_trades')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
   const positionIdRef = useRef(0)
+
+  useEffect(() => {
+    if (openPositions.length > 0) {
+      positionIdRef.current = Math.max(positionIdRef.current, ...openPositions.map(p => p.id))
+    }
+  }, [openPositions])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('app_open_positions', JSON.stringify(openPositions))
+      } catch {
+        // silent
+      }
+    }
+  }, [openPositions])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('app_closed_trades', JSON.stringify(closedTrades))
+      } catch {
+        // silent
+      }
+    }
+  }, [closedTrades])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('app_live_balance', liveBalance.toString())
+      } catch {
+        // silent
+      }
+    }
+  }, [liveBalance])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('app_demo_balance', demoBalance.toString())
+      } catch {
+        // silent
+      }
+    }
+  }, [demoBalance])
 
   // Theme State (`dark` | `light`) with automatic device theme preference detection
   const [theme, setTheme] = useState<Theme>(() => {
@@ -1590,10 +1682,41 @@ export default function App() {
     ])
 
     if (accountType === 'demo') {
-      setDemoBalance((balance) => balance + pos.profit)
+      const nextDemoBalance = Math.max(0, demoBalance + pos.profit)
+      setDemoBalance(nextDemoBalance)
+      if (supabaseConfigured && supabase && user) {
+        void supabase.from('wallets').upsert({
+          user_id: user.id,
+          demo_balance: nextDemoBalance,
+          updated_at: new Date().toISOString(),
+        })
+      }
     } else if (accountType === 'live') {
-      setLiveBalance((balance) => Math.max(0, balance + pos.profit))
+      const nextLiveBalance = Math.max(0, liveBalance + pos.profit)
+      setLiveBalance(nextLiveBalance)
       setWalletBalances(w => ({ ...w, main: Math.max(0, w.main + pos.profit) }))
+      if (supabaseConfigured && supabase && user) {
+        void supabase.from('wallets').upsert({
+          user_id: user.id,
+          live_balance: nextLiveBalance,
+          main_wallet: nextLiveBalance,
+          updated_at: new Date().toISOString(),
+        })
+      }
+    }
+
+    if (supabaseConfigured && supabase && user) {
+      void supabase.from('trades').insert({
+        user_id: user.id,
+        symbol: pos.symbol,
+        direction: pos.type,
+        lots: pos.lots,
+        open_price: pos.openPrice,
+        close_price: closePrice,
+        profit_loss: pos.profit,
+        status: pos.profit >= 0 ? 'WIN' : 'LOSS',
+        closed_at: new Date().toISOString(),
+      })
     }
 
     setTradeOutcomeResult({ symbol: pos.symbol, pnl: pos.profit, type: pos.type })
@@ -1650,6 +1773,18 @@ export default function App() {
     }
 
     setOpenPositions(curr => [newPos, ...curr])
+
+    if (supabaseConfigured && supabase && user) {
+      void supabase.from('trades').insert({
+        user_id: user.id,
+        symbol,
+        direction,
+        lots,
+        open_price: newPos.openPrice,
+        status: 'OPEN',
+      })
+    }
+
     setModal(null)
     const accLabel = accountType === 'live' ? 'REAL' : 'DEMO'
     showNotice(`✅ ${accLabel} ${direction} ${lots} ${symbol} opened at ${newPos.openPrice.toFixed(isForex ? (symbol.endsWith('JPY') ? 3 : 5) : 2)}. Margin: $${requiredMargin.toFixed(2)}.`)
