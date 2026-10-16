@@ -480,16 +480,10 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (currentAdmin) {
-        window.location.hash = `#admin/${section}`
-        localStorage.setItem('admin_active_section', section)
-      } else {
-        if (window.location.hash) {
-          window.history.replaceState(null, '', window.location.pathname)
-        }
-      }
+      window.location.hash = `#admin/${section}`
+      localStorage.setItem('admin_active_section', section)
     }
-  }, [section, currentAdmin])
+  }, [section])
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -1589,7 +1583,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
             <tr>
               <td><span className="sa-badge" style={{ background: 'rgba(28,207,132,0.15)', color: '#1ccf84' }}>LOW</span></td>
               <td><strong>Successful Login</strong></td>
-              <td>daniwesttechnologies@gmail.com</td>
+              <td>audit@nexsmarkets.com</td>
               <td><code>41.90.172.36</code></td>
               <td><span className="sa-dim">8/25/2026, 12:53:17 AM</span></td>
               <td><span className="sa-dim">Authenticated</span></td>
@@ -1597,7 +1591,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
             <tr>
               <td><span className="sa-badge" style={{ background: 'rgba(28,207,132,0.15)', color: '#1ccf84' }}>LOW</span></td>
               <td><strong>Successful Login</strong></td>
-              <td>daniwesttechnologies@gmail.com</td>
+              <td>audit@nexsmarkets.com</td>
               <td><code>154.159.238.12</code></td>
               <td><span className="sa-dim">7/31/2026, 12:41:52 AM</span></td>
               <td><span className="sa-dim">Authenticated</span></td>
@@ -1605,7 +1599,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
             <tr>
               <td><span className="sa-badge" style={{ background: 'rgba(242,185,75,0.15)', color: '#f2b94b' }}>MEDIUM</span></td>
               <td><strong>Failed Login Attempt</strong></td>
-              <td>daniwesttechnologies@gmail.com</td>
+              <td>audit@nexsmarkets.com</td>
               <td><code>41.90.172.69</code></td>
               <td><span className="sa-dim">6/12/2026, 10:44:56 AM</span></td>
               <td><span className="sa-badge sa-badge-danger">Flagged</span></td>
@@ -1613,7 +1607,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
             <tr>
               <td><span className="sa-badge" style={{ background: 'rgba(242,185,75,0.15)', color: '#f2b94b' }}>MEDIUM</span></td>
               <td><strong>Failed Login Attempt</strong></td>
-              <td>daniwesttechnologies@gmail.com</td>
+              <td>audit@nexsmarkets.com</td>
               <td><code>41.90.172.69</code></td>
               <td><span className="sa-dim">6/10/2026, 11:11:11 PM</span></td>
               <td><span className="sa-badge sa-badge-danger">Flagged</span></td>
@@ -1621,7 +1615,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
             <tr>
               <td><span className="sa-badge" style={{ background: 'rgba(28,207,132,0.15)', color: '#1ccf84' }}>LOW</span></td>
               <td><strong>Successful Login</strong></td>
-              <td>daniwesttechnologies@gmail.com</td>
+              <td>audit@nexsmarkets.com</td>
               <td><code>105.164.118.8</code></td>
               <td><span className="sa-dim">6/6/2026, 1:26:18 PM</span></td>
               <td><span className="sa-dim">Authenticated</span></td>
