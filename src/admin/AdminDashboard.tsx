@@ -300,12 +300,6 @@ function MfaGate({ onPass }: { onPass: () => void }) {
 }
 
 export default function AdminDashboard() {
-  // Auth state (Enforced Security: Login screen & MFA gate active)
-  const [phase, setPhase] = useState<'login' | 'mfa' | 'dashboard'>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPw, setShowPw] = useState(false)
-  const [loginError, setLoginError] = useState('')
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(null)
 
   // Auto-authenticate signed-in admin user directly to Full Admin Dashboard
@@ -337,7 +331,6 @@ export default function AdminDashboard() {
               ipWhitelist: [],
             }
             setCurrentAdmin(adminObj)
-            setPhase('dashboard')
           }
         }
       } catch {
@@ -916,13 +909,14 @@ export default function AdminDashboard() {
 
 
 
-  const handleLogout = () => {
-    addAudit('ADMIN_LOGOUT', currentAdmin!.id, 'Admin', `${currentAdmin!.name} logged out`, 'info')
-    setPhase('login')
-    setCurrentAdmin(null)
-    setEmail('')
-    setPassword('')
-    setSection('overview')
+  const handleLogout = async () => {
+    if (currentAdmin) {
+      addAudit('ADMIN_LOGOUT', currentAdmin.id, 'Admin', `${currentAdmin.name} logged out`, 'info')
+    }
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
+    window.location.href = '/'
   }
 
   const canAccess = (perm: keyof AdminPermissions) => currentAdmin?.permissions[perm] ?? false
@@ -1528,91 +1522,6 @@ export default function AdminDashboard() {
       </div>
     </div>
   )
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER: LOGIN
-  // ─────────────────────────────────────────────────────────────────────────
-  if (phase === 'login') {
-    return (
-      <div className="sa-login-shell">
-        <div className="sa-login-bg" />
-        <div className="sa-login-card">
-          <div className="sa-login-icon" style={{ background: 'transparent', border: 'none' }}>
-            <img src="/logo.jpeg" alt="NEXSMARKETS Admin Logo" style={{ width: 52, height: 52, borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--sa-amber)' }} />
-          </div>
-          <div className="sa-login-brand">NEXSMARKETS</div>
-          <div className="sa-login-sub">ADMIN PORTAL</div>
-          <p className="sa-login-desc">Restricted access. Unauthorized entry is a criminal offence and will be logged.</p>
-
-          <form onSubmit={handleLogin} className="sa-login-form">
-            <label className="sa-label">
-              Admin Email
-              <input
-                type="email"
-                className="sa-input"
-                placeholder="admin@exstrade.com"
-                value={email}
-                autoComplete="username"
-                onChange={e => { setEmail(e.target.value); setLoginError('') }}
-                required
-              />
-            </label>
-            <label className="sa-label">
-              Password
-              <span className="sa-pw-wrap">
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  className="sa-input"
-                  placeholder="••••••••••••"
-                  value={password}
-                  autoComplete="current-password"
-                  onChange={e => { setPassword(e.target.value); setLoginError('') }}
-                  required
-                />
-                <button type="button" className="sa-pw-toggle" onClick={() => setShowPw(p => !p)}>
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </span>
-            </label>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px' }}>
-              <button type="button" onClick={() => {
-                if (!email.trim()) { setLoginError('Please enter your admin email above first.'); return }
-                showToast(`🔑 Admin password reset link dispatched to ${email.trim()}`)
-              }} style={{ background: 'transparent', border: 'none', color: 'var(--sa-amber)', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>
-                Forgot password?
-              </button>
-            </div>
-
-            {loginError && <p className="sa-login-error"><AlertCircle size={14} /> {loginError}</p>}
-            <button type="submit" className="sa-btn sa-btn-primary sa-btn-full">
-              <ShieldCheck size={16} /> Authenticate
-            </button>
-
-            <div style={{ textAlign: 'center', margin: '10px 0 6px', fontSize: '11px', color: 'var(--sa-muted)' }}>or</div>
-
-            <button type="button" className="sa-btn sa-btn-outline sa-btn-full" onClick={() => {
-              showToast('Connecting to Admin Google OAuth...')
-              window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin)}`
-            }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <Globe size={15} /> Continue with Google
-            </button>
-          </form>
-
-          <p className="sa-login-back" onClick={() => window.location.href = '/'} style={{ cursor: 'pointer', textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--sa-cyan)' }}>
-            ← Return to Platform
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER: MFA
-  // ─────────────────────────────────────────────────────────────────────────
-  if (phase === 'mfa') {
-    return <MfaGate onPass={handleMfaPass} />
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER: DASHBOARD
