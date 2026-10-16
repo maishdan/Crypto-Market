@@ -623,32 +623,11 @@ body.theme-light .unified-account-dropdown option {
   background: #0e0e15;
 }
 
-.app-shell-synthetic .sidebar:hover {
-  width: 72px;
-  min-width: 72px;
-  align-items: center;
-}
-
 .app-shell-synthetic .sidebar .brand img {
   width: 36px;
   min-width: 36px;
   height: 36px;
   object-fit: contain;
-}
-
-.app-shell-synthetic .sidebar:hover .brand-text,
-.app-shell-synthetic .sidebar:hover .profile-copy {
-  display: none;
-  opacity: 0;
-}
-
-.app-shell-synthetic .sidebar:hover .nav-label {
-  display: none;
-}
-
-.app-shell-synthetic .sidebar:hover .nav-item {
-  justify-content: center;
-  padding: 10px;
 }
 
 @media (max-width: 760px) {
@@ -3341,11 +3320,11 @@ textarea:focus {
 
 /* ── P&L Ticker Profit / Loss Colors ─────────────────────────────────────────── */
 .ticker-up {
-  color: #2979ff !important; /* Dark blue for profits */
+  color: #00e676 !important; /* Electric Neon Green for profits/wins */
 }
 
 .ticker-down {
-  color: #ff1744 !important; /* Red for losses */
+  color: #ff1744 !important; /* Electric Neon Red for losses */
 }
 .investment-coin-panel {
   border-color: rgba(0, 229, 255, 0.12) !important;
@@ -5552,7 +5531,7 @@ body.theme-light .page-loader-bar {
   height: 100%;
   width: 100%;
   background: linear-gradient(90deg, #00e5ff, #00e676);
-  animation: pageBarFill 3s linear forwards;
+  animation: pageBarFill 0.45s ease-out forwards;
 }
 
 @keyframes pageBarFill {

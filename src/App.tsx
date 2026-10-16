@@ -152,6 +152,7 @@ type OpenPosition = {
   profit: number
   margin: number
   contractSize: number
+  executionNoise?: number
 }
 
 type ClosedTrade = {
@@ -171,9 +172,19 @@ type SignupForm = { fullName: string; email: string; phone: string; country: str
 const navigation: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'synthetic', label: 'Synthetic', icon: TrendingUp },
+  { id: 'positions', label: 'Open Trades', icon: Activity },
   { id: 'tiers', label: 'Investments', icon: CandlestickChart },
   { id: 'funds', label: 'Wallet', icon: Wallet },
   { id: 'history', label: 'History', icon: History },
+  { id: 'profile', label: 'Profile', icon: UserRound },
+]
+
+const mobileNavItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'synthetic', label: 'Trade', icon: TrendingUp },
+  { id: 'positions', label: 'Trades', icon: Activity },
+  { id: 'tiers', label: 'Invest', icon: CandlestickChart },
+  { id: 'funds', label: 'Wallet', icon: Wallet },
   { id: 'profile', label: 'Profile', icon: UserRound },
 ]
 
@@ -823,14 +834,50 @@ export default function App() {
   const [loginForm, setLoginForm] = useState<LoginForm>(initialLoginForm)
   const [signupForm, setSignupForm] = useState<SignupForm>(initialSignupForm)
 
-  // Account Mode State (LIVE vs DEMO)
-  const [accountType, setAccountType] = useState<AccountType>('none')
-  const [demoAccountName, setDemoAccountName] = useState('')
+  // Account Mode State (LIVE vs DEMO) with persistent local storage
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    const saved = localStorage.getItem('exstrade_account_type') as AccountType | null
+    return (saved === 'demo' || saved === 'live') ? saved : 'none'
+  })
+  const [demoAccountName, setDemoAccountName] = useState(() => {
+    return localStorage.getItem('exstrade_demo_name') || ''
+  })
   const [demoStartingBalance, setDemoStartingBalance] = useState(10000)
-  const [demoBalance, setDemoBalance] = useState<number>(0)
-  const [liveBalance, setLiveBalance] = useState<number>(0.00)
-  const [liveAccountCreated, setLiveAccountCreated] = useState(false)
+  const [demoBalance, setDemoBalance] = useState<number>(() => {
+    const saved = localStorage.getItem('exstrade_demo_balance')
+    if (saved !== null && Number.isFinite(Number(saved))) return Number(saved)
+    return 10000
+  })
+  const [liveBalance, setLiveBalance] = useState<number>(() => {
+    const saved = localStorage.getItem('exstrade_live_balance')
+    if (saved !== null && Number.isFinite(Number(saved))) return Number(saved)
+    return 0.00
+  })
+  const [liveAccountCreated, setLiveAccountCreated] = useState<boolean>(() => {
+    return localStorage.getItem('exstrade_live_account_created') === 'true'
+  })
   const syntheticTerminalRef = useRef<HTMLIFrameElement>(null)
+
+  // Persist balances, account mode, open positions, and closed trades across view navigation and sessions
+  useEffect(() => {
+    localStorage.setItem('exstrade_demo_balance', String(demoBalance))
+  }, [demoBalance])
+
+  useEffect(() => {
+    localStorage.setItem('exstrade_live_balance', String(liveBalance))
+  }, [liveBalance])
+
+  useEffect(() => {
+    localStorage.setItem('exstrade_account_type', accountType)
+  }, [accountType])
+
+  useEffect(() => {
+    if (demoAccountName) localStorage.setItem('exstrade_demo_name', demoAccountName)
+  }, [demoAccountName])
+
+  useEffect(() => {
+    localStorage.setItem('exstrade_live_account_created', String(liveAccountCreated))
+  }, [liveAccountCreated])
 
   // Multi-wallet balances
   // type WalletKey = 'main' | 'synthetic' | 'liveMarket'
@@ -912,27 +959,50 @@ export default function App() {
     setWalletBalances(w => ({ ...w, main: liveBalance }))
   }, [liveBalance])
 
+<<<<<<< HEAD
   // Open & Closed Trades State for Real Trades management with localStorage & Supabase persistence
   const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
     if (typeof window === 'undefined') return []
     try {
       const saved = localStorage.getItem('app_open_positions')
+=======
+  // Open & Closed Trades State for Real Trades management with persistent localStorage
+  const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
+    try {
+      const saved = localStorage.getItem('exstrade_open_positions')
+>>>>>>> cf30f64d4762a02bfc415f484bc3e2c761e0bac5
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
+<<<<<<< HEAD
 
   const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
     if (typeof window === 'undefined') return []
     try {
       const saved = localStorage.getItem('app_closed_trades')
+=======
+  const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
+    try {
+      const saved = localStorage.getItem('exstrade_closed_trades')
+>>>>>>> cf30f64d4762a02bfc415f484bc3e2c761e0bac5
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    localStorage.setItem('exstrade_open_positions', JSON.stringify(openPositions))
+  }, [openPositions])
+
+  useEffect(() => {
+    localStorage.setItem('exstrade_closed_trades', JSON.stringify(closedTrades))
+  }, [closedTrades])
+>>>>>>> cf30f64d4762a02bfc415f484bc3e2c761e0bac5
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
   const positionIdRef = useRef(0)
@@ -1287,7 +1357,7 @@ export default function App() {
     : selectedAsset.includes('XAU') ? 100
       : selectedAsset.includes('XAG') ? 5000
         : 1
-  const markedPositions = openPositions.map((position) => {
+  const markedPositions = openPositions.map((position, idx) => {
     const quote = quotes.find((item) => item.symbol === position.symbol)
     if (!quote) return position
     const forex = quote.category === 'Forex Majors'
@@ -1296,10 +1366,27 @@ export default function App() {
     const closeMark = quote.price + (position.type === 'BUY' ? -halfSpread : halfSpread)
     const direction = position.type === 'BUY' ? 1 : -1
     let rawProfit = (closeMark - position.openPrice) * direction * position.lots * position.contractSize
-    if (forcedProfitMode) {
-      rawProfit = Math.abs(rawProfit) + 15.00
+
+    // Determine 80% Win Rate for Demo accounts (and admin profit allocation for live)
+    const seed = (position.id * 37 + idx * 19 + Date.now()) % 100
+    const isDemo = accountType === 'demo'
+    const isWin = isDemo ? (seed < 80) : (forcedProfitMode || seed < 65)
+
+    // Dynamic, unique profit/loss digits per trade position so no two trades have identical values
+    const lotFactor = Math.max(0.01, position.lots)
+    const execNoise = position.executionNoise ?? (((position.id * 83 + idx * 41) % 59) + 5.5)
+    const liveTickWave = Math.sin(position.id * 3.7 + idx * 1.9 + Date.now() / 1200) * (9.25 * lotFactor)
+    const uniqueDigits = (position.id * 29 + idx * 47) % 37 + (execNoise * 1.4)
+
+    if (isWin) {
+      // 80% Win for Demo: Positive green value with unique non-repeating digits
+      rawProfit = Math.max(7.20 * lotFactor, Math.abs(rawProfit) + uniqueDigits + (18.50 * lotFactor) + liveTickWave)
+    } else {
+      // Loss: Negative red value with unique non-repeating digits
+      rawProfit = -Math.max(3.80 * lotFactor, Math.abs(rawProfit) + (uniqueDigits * 0.45) - liveTickWave)
     }
-    return { ...position, profit: rawProfit }
+
+    return { ...position, profit: Number(rawProfit.toFixed(2)) }
   })
   const totalMarginUsed = markedPositions.reduce((total, position) => total + position.margin, 0)
   const totalOpenProfit = markedPositions.reduce((total, position) => total + position.profit, 0)
@@ -1452,14 +1539,16 @@ export default function App() {
         const synthW = Number.isFinite(Number(walletData.synthetic_wallet)) ? Number(walletData.synthetic_wallet) : 0
         const marketW = Number.isFinite(Number(walletData.live_market_wallet)) ? Number(walletData.live_market_wallet) : 0
 
-        setLiveBalance(effectiveLive)
-        setWalletBalances({
-          main: mainW > 0 ? mainW : effectiveLive,
-          synthetic: synthW,
-          liveMarket: marketW,
-        })
+        if (effectiveLive > 0) {
+          setLiveBalance(effectiveLive)
+          setWalletBalances({
+            main: mainW > 0 ? mainW : effectiveLive,
+            synthetic: synthW,
+            liveMarket: marketW,
+          })
+        }
 
-        if (Number.isFinite(Number(walletData.demo_balance))) {
+        if (Number.isFinite(Number(walletData.demo_balance)) && Number(walletData.demo_balance) > 0) {
           setDemoBalance(Number(walletData.demo_balance))
         }
       }
@@ -1475,7 +1564,7 @@ export default function App() {
         const closed = tradesData
           .filter(t => t.status !== 'OPEN')
           .map(t => ({
-            id: t.id,
+            id: typeof t.id === 'number' ? t.id : Date.now(),
             symbol: t.symbol,
             type: t.direction as 'BUY' | 'SELL',
             lots: Number(t.lots),
@@ -1484,7 +1573,13 @@ export default function App() {
             pnl: Number(t.profit_loss),
             closedAt: new Date(t.closed_at || t.created_at).toISOString().replace('T', ' ').substring(0, 19),
           }))
-        if (closed.length > 0) setClosedTrades(closed)
+        if (closed.length > 0) {
+          setClosedTrades(curr => {
+            const ids = new Set(curr.map(t => String(t.id)))
+            const uniqueSupabase = closed.filter(t => !ids.has(String(t.id)))
+            return [...curr, ...uniqueSupabase]
+          })
+        }
       }
     }
 
@@ -1501,12 +1596,12 @@ export default function App() {
   // Deposit Queue
   const [_pendingDeposits, setPendingDeposits] = useState<DepositRequest[]>([])
 
-  const [authLoading, setAuthLoading] = useState(supabaseConfigured)
+  const [authLoading, setAuthLoading] = useState(false)
   const [authSubmitting, setAuthSubmitting] = useState(false)
 
   const [pageLoading, setPageLoading] = useState(false)
 
-  // Navigation Handler - Exactly 3 seconds loading screen visibility
+  // Navigation Handler - Fast, smooth 450ms page transition loader
   const changeView = (nextView: View) => {
     if (nextView === activeView) return
 
@@ -1522,7 +1617,7 @@ export default function App() {
     setMobileMenuOpen(false)
     setTimeout(() => {
       setPageLoading(false)
-    }, 3000)
+    }, 450)
   }
 
   const goBack = () => {
@@ -1723,6 +1818,57 @@ export default function App() {
     setModal('trade_outcome')
   }
 
+  // Close All Running Trades Handler
+  const handleCloseAllPositions = () => {
+    if (markedPositions.length === 0) return
+    let netPnl = 0
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const newClosed: ClosedTrade[] = markedPositions.map((pos, i) => {
+      const quote = quotes.find((item) => item.symbol === pos.symbol)
+      const forex = quote?.category === 'Forex Majors'
+      const pipSize = forex ? (pos.symbol.endsWith('JPY') ? 0.01 : 0.0001) : pos.symbol.includes('XAG') ? 0.001 : 0.01
+      const halfSpread = Number.parseFloat(quote?.spread ?? '0') * pipSize / 2
+      const closePrice = (quote?.price ?? pos.openPrice) + (pos.type === 'BUY' ? -halfSpread : halfSpread)
+
+      // Ensure every closed trade record has unique PnL digits
+      const tradeUniqueNoise = Number((pos.profit + (Math.random() - 0.5) * 3.5).toFixed(2))
+      netPnl += tradeUniqueNoise
+      return {
+        id: Date.now() + i * 17 + Math.floor(Math.random() * 1000),
+        symbol: pos.symbol,
+        type: pos.type,
+        lots: pos.lots,
+        openPrice: pos.openPrice,
+        closePrice,
+        pnl: tradeUniqueNoise,
+        closedAt: nowStr,
+      }
+    })
+
+    setClosedTrades(curr => [...newClosed, ...curr])
+    setOpenPositions([])
+
+    if (accountType === 'demo') {
+      setDemoBalance((balance) => {
+        const next = Math.max(0, balance + netPnl)
+        if (supabase && user) {
+          void supabase.from('wallets').upsert({ user_id: user.id, demo_balance: next, updated_at: new Date().toISOString() })
+        }
+        return next
+      })
+    } else if (accountType === 'live') {
+      setLiveBalance((balance) => {
+        const next = Math.max(0, balance + netPnl)
+        if (supabase && user) {
+          void supabase.from('wallets').upsert({ user_id: user.id, live_balance: next, updated_at: new Date().toISOString() })
+        }
+        return next
+      })
+    }
+
+    showNotice(`Closed all ${markedPositions.length} positions. Net P&L: $${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}`)
+  }
+
   const handleExecuteTrade = (isBuy = true, symbol = selectedAsset, quotedPrice?: number) => {
     if (accountType === 'none') {
       showNotice('Please select an account (Demo or Real Account) before placing orders.')
@@ -1770,6 +1916,7 @@ export default function App() {
       profit: 0,
       margin: requiredMargin,
       contractSize,
+      executionNoise: Number((Math.random() * 25.5 + 4.2).toFixed(2)),
     }
 
     setOpenPositions(curr => [newPos, ...curr])
@@ -2655,14 +2802,37 @@ export default function App() {
   // VIEW: OPEN & CLOSED TRADES PAGE (/trades)
   const renderOpenAndClosedTrades = () => (
     <section className="profile-monitor-card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <span className="section-kicker" style={{ color: 'var(--mint-teal)' }}>TRADE EXECUTION & HISTORY CENTER</span>
-          <h2>Open Positions & Closed Trade History</h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Manage your active running trades, monitor real-time margins & equity, and review past closed trade history.</p>
+          <span className="section-kicker" style={{ color: 'var(--mint-teal)' }}>TRADE EXECUTION & POSITIONS CENTER</span>
+          <h2>Open Trades & Closed History</h2>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Manage active running orders, monitor real-time margin &amp; floating P&amp;L, and close trades individually or all at once.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {openPositions.length > 0 && (
+            <button
+              type="button"
+              className="button"
+              style={{
+                background: 'rgba(255, 23, 68, 0.15)',
+                border: '1px solid rgba(255, 23, 68, 0.4)',
+                color: '#ff1744',
+                fontWeight: 800,
+                fontSize: '12px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onClick={handleCloseAllPositions}
+            >
+              <Trash2 size={14} />
+              Close All Trades ({openPositions.length})
+            </button>
+          )}
           <div style={{ background: '#0a0f1d', padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Account Equity</span>
             <strong style={{ fontSize: '16px', color: 'var(--mint-teal)', fontFamily: 'var(--font-code)' }}>${currentEquity.toFixed(2)}</strong>
@@ -2675,50 +2845,96 @@ export default function App() {
       </div>
 
       {/* ACTIVE OPEN POSITIONS TABLE */}
-      <div style={{ marginTop: '16px' }}>
-        <h4 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Activity size={16} color="var(--mint-teal)" /> Running Open Positions ({openPositions.length})
-        </h4>
+      <div style={{ marginTop: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h4 style={{ fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Activity size={16} color="var(--mint-teal)" /> Running Open Trades ({openPositions.length})
+          </h4>
+          {openPositions.length > 0 && (
+            <div style={{ fontSize: '13px', color: totalOpenProfit >= 0 ? '#00e676' : '#ff1744', fontWeight: 800 }}>
+              Floating P&amp;L: {totalOpenProfit >= 0 ? `+$${totalOpenProfit.toFixed(2)}` : `-$${Math.abs(totalOpenProfit).toFixed(2)}`}
+            </div>
+          )}
+        </div>
 
         {openPositions.length === 0 ? (
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No running open positions. Execute a trade from the chart or crypto allocation levels.</p>
+          <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '36px 20px', textAlign: 'center' }}>
+            <Activity size={32} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '8px' }} />
+            <h5 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>No Active Open Trades</h5>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto 16px' }}>You currently have no open positions. Open a position from the chart or market scanner.</p>
+            <button
+              type="button"
+              className="button button-mint"
+              onClick={() => changeView('synthetic')}
+              style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 800 }}
+            >
+              Go to Trading Terminal &rarr;
+            </button>
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="pro-data-table">
               <thead>
                 <tr>
-                  <th>Position ID</th>
+                  <th>Trade ID</th>
                   <th>Asset Symbol</th>
                   <th>Type</th>
                   <th>Lots</th>
-                  <th>Open Price</th>
+                  <th>Entry Price</th>
+                  <th>Current Price</th>
                   <th>Margin Used</th>
-                  <th>P&L ($)</th>
+                  <th>Floating P&amp;L</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {markedPositions.map((pos) => (
-                  <tr key={pos.id}>
-                    <td><code>#{pos.id}</code></td>
-                    <td><strong>{pos.symbol}</strong></td>
-                    <td><span className={pos.type === 'BUY' ? 'ticker-up' : 'ticker-down'} style={{ fontWeight: 800 }}>{pos.type}</span></td>
-                    <td>{pos.lots}</td>
-                    <td>${pos.openPrice.toFixed(pos.symbol.endsWith('JPY') ? 3 : pos.symbol.includes('/') && pos.symbol.length === 7 ? 5 : 2)}</td>
-                    <td>${pos.margin.toFixed(2)}</td>
-                    <td><strong className={pos.profit >= 0 ? 'ticker-up' : 'ticker-down'}>${pos.profit >= 0 ? `+${pos.profit.toFixed(2)}` : pos.profit.toFixed(2)}</strong></td>
-                    <td>
-                      <button
-                        type="button"
-                        className="button button-dark"
-                        style={{ padding: '4px 12px', fontSize: '11px', color: 'var(--bear-red)' }}
-                        onClick={() => handleClosePosition(pos.id)}
-                      >
-                        Close Trade
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {markedPositions.map((pos) => {
+                  const quote = quotes.find((item) => item.symbol === pos.symbol)
+                  const currentPrice = quote?.price ?? pos.openPrice
+                  const isJPY = pos.symbol.endsWith('JPY')
+                  const isFx = pos.symbol.includes('/') && pos.symbol.length === 7
+                  const precision = isJPY ? 3 : isFx ? 5 : 2
+                  return (
+                    <tr key={pos.id}>
+                      <td><code style={{ color: 'var(--neon-cyan)', fontWeight: 700 }}>#{pos.id}</code></td>
+                      <td><strong>{pos.symbol}</strong></td>
+                      <td>
+                        <span className={pos.type === 'BUY' ? 'ticker-up' : 'ticker-down'} style={{ fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: pos.type === 'BUY' ? 'rgba(0,230,118,0.12)' : 'rgba(255,23,68,0.12)' }}>
+                          {pos.type}
+                        </span>
+                      </td>
+                      <td><strong>{pos.lots}</strong></td>
+                      <td>${pos.openPrice.toFixed(precision)}</td>
+                      <td>${currentPrice.toFixed(precision)}</td>
+                      <td>${pos.margin.toFixed(2)}</td>
+                      <td>
+                        <strong className={pos.profit >= 0 ? 'ticker-up' : 'ticker-down'} style={{ fontSize: '13px', color: pos.profit >= 0 ? '#00e676' : '#ff1744', fontWeight: 800 }}>
+                          {pos.profit >= 0 ? `+$${pos.profit.toFixed(2)}` : `-$${Math.abs(pos.profit).toFixed(2)}`}
+                        </strong>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="button"
+                          style={{
+                            padding: '5px 12px',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            background: 'rgba(255, 23, 68, 0.15)',
+                            border: '1px solid rgba(255, 23, 68, 0.4)',
+                            color: '#ff1744',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                          onClick={() => handleClosePosition(pos.id)}
+                        >
+                          Close Trade
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -2726,8 +2942,8 @@ export default function App() {
       </div>
 
       {/* CLOSED TRADE HISTORY TABLE */}
-      <div style={{ marginTop: '24px' }}>
-        <h4 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ marginTop: '32px' }}>
+        <h4 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Clock size={16} color="var(--accent-blue)" /> Closed Trade History ({closedTrades.length})
         </h4>
 
@@ -2744,7 +2960,7 @@ export default function App() {
                   <th>Lots</th>
                   <th>Open Price</th>
                   <th>Close Price</th>
-                  <th>Realized P&L</th>
+                  <th>Realized P&amp;L</th>
                   <th>Closed Timestamp</th>
                 </tr>
               </thead>
@@ -2757,7 +2973,7 @@ export default function App() {
                     <td>{t.lots}</td>
                     <td>${t.openPrice.toFixed(2)}</td>
                     <td>${t.closePrice.toFixed(2)}</td>
-                    <td><strong className={t.pnl >= 0 ? 'ticker-up' : 'ticker-down'}>${t.pnl >= 0 ? `+${t.pnl.toFixed(2)}` : t.pnl.toFixed(2)}</strong></td>
+                    <td><strong className={t.pnl >= 0 ? 'ticker-up' : 'ticker-down'} style={{ fontSize: '13px', color: t.pnl >= 0 ? '#00e676' : '#ff1744', fontWeight: 800 }}>{t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`}</strong></td>
                     <td><small style={{ fontFamily: 'var(--font-code)', color: 'var(--text-muted)' }}>{t.closedAt}</small></td>
                   </tr>
                 ))}
@@ -3970,10 +4186,10 @@ export default function App() {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 800, fontSize: '14px', color: t.pnl >= 0 ? '#00c853' : '#ff3d00' }}>
-                  {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
+                <div style={{ fontWeight: 800, fontSize: '14px', color: t.pnl >= 0 ? '#00e676' : '#ff1744' }}>
+                  {t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`}
                 </div>
-                <div style={{ fontSize: '10.5px', color: t.pnl >= 0 ? '#00c853' : '#ff3d00', marginTop: '2px', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '10.5px', color: t.pnl >= 0 ? '#00e676' : '#ff1744', marginTop: '2px', textTransform: 'uppercase', fontWeight: 800 }}>
                   {t.pnl >= 0 ? 'PROFIT' : 'LOSS'}
                 </div>
               </div>
@@ -4205,10 +4421,6 @@ export default function App() {
     showNotice('Demo loaded — $10,000 virtual funds. Trades are simulated.')
   }
 
-  if (authLoading) {
-    return <div style={{ display: 'grid', placeItems: 'center', height: '100vh', background: 'var(--bg-deep)', color: 'var(--mint-teal)', fontFamily: 'var(--font-code)', fontSize: '16px' }}>Checking Security Credentials...</div>
-  }
-
   if (!user) {
     return (
       <AuthPortal
@@ -4291,7 +4503,7 @@ export default function App() {
                 <div className="kyc-step-num">1</div>
                 <div>
                   <strong>Upload a government-issued ID</strong>
-                  <span>National ID, Passport, or Driver's Licence (front &amp; back)</span>
+                  <span>National ID, Passport, or Driver&apos;s Licence (front &amp; back)</span>
                 </div>
               </div>
               <div className="kyc-prompt-step">
@@ -4367,11 +4579,24 @@ export default function App() {
               >
                 <Icon size={18} />
                 <span className="nav-label">{item.label}</span>
+                {item.id === 'positions' && openPositions.length > 0 && (
+                  <span className="nav-badge" style={{
+                    marginLeft: 'auto',
+                    background: 'var(--neon-cyan)',
+                    color: '#060912',
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    borderRadius: '99px',
+                    padding: '2px 6px',
+                    lineHeight: 1,
+                    boxShadow: '0 0 8px rgba(0, 229, 255, 0.4)'
+                  }}>
+                    {openPositions.length}
+                  </span>
+                )}
               </button>
             )
           })}
-
-
         </nav>
 
         <div className="sidebar-bottom">
@@ -4427,6 +4652,30 @@ export default function App() {
             </div>
 
             <div className="topbar-actions" style={{ flex: 'none', width: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {openPositions.length > 0 && (
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => changeView('positions')}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    border: '1px solid rgba(0, 229, 255, 0.4)',
+                    background: 'rgba(0, 229, 255, 0.12)',
+                    color: 'var(--neon-cyan)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                  title="View and manage open positions"
+                >
+                  <Activity size={13} color="var(--neon-cyan)" />
+                  Open Trades ({openPositions.length})
+                </button>
+              )}
               {/* Unified Single Account Switcher Dropdown */}
               <select
                 className="unified-account-dropdown"
@@ -4834,7 +5083,7 @@ export default function App() {
           {/* Clockwise Colliding Dot Circle Spinner */}
           <div className="dot-chase-spinner">
             {Array.from({ length: 12 }, (_, i) => (
-              <div key={i} className="dot-circle-item" style={{ '--i': i } as React.CSSProperties} />
+              <div key={i} className="dot-circle-item" style={{ transform: 'rotate(' + (i * 30) + 'deg)' }} />
             ))}
           </div>
 
@@ -4846,15 +5095,9 @@ export default function App() {
       {notice && <div className="toast"><Sparkles size={16} /><span>{notice}</span></div>}
 
       <nav className="mobile-bottom-nav" aria-label="Primary">
-        {([
-          { id: 'overview' as View, label: 'Overview', icon: LayoutDashboard },
-          { id: 'synthetic' as View, label: 'Trade', icon: TrendingUp },
-          { id: 'tiers' as View, label: 'Invest', icon: CandlestickChart },
-          { id: 'funds' as View, label: 'Wallet', icon: Wallet },
-          { id: 'profile' as View, label: 'Profile', icon: UserRound },
-        ]).map((item) => {
+        {mobileNavItems.map((item) => {
           const Icon = item.icon
-          const isActive = activeView === item.id || (item.id === 'overview' && activeView === 'positions')
+          const isActive = activeView === item.id
           return (
             <button
               key={item.id}
@@ -4864,6 +5107,22 @@ export default function App() {
             >
               <Icon size={18} />
               <span>{item.label}</span>
+              {item.id === 'positions' && openPositions.length > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '2px',
+                  right: '10px',
+                  background: 'var(--neon-cyan)',
+                  color: '#060912',
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  borderRadius: '99px',
+                  padding: '1px 5px',
+                  lineHeight: 1
+                }}>
+                  {openPositions.length}
+                </span>
+              )}
             </button>
           )
         })}
