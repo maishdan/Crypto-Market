@@ -755,28 +755,10 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
         }
       }
 
-      // Include all registered user profiles requiring verification so Admin Queue is never empty
-      if (profilesRes.ok) {
-        Object.entries(profileMap).forEach(([uid, p]) => {
-          if (!kycCases.some(c => c.userId === uid)) {
-            kycCases.push({
-              id: 'kyc-prof-' + uid,
-              userId: uid,
-              userName: p.name,
-              userEmail: p.email,
-              documentType: (p.docType as any) || 'National ID',
-              mimeType: 'image/jpeg',
-              fileUrl: '/generic-profile-portrait.svg',
-              submittedAt: p.createdAt || new Date().toISOString(),
-              status: p.status === 'approved' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'pending',
-              rejectionReason: '',
-            })
-          }
-        })
-      }
-
       if (kycCases.length > 0) {
         setKycQueue(kycCases)
+      } else {
+        setKycQueue([])
       }
     } catch {
       // silent
@@ -907,10 +889,21 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     notify(`${u.name} ${next === 'suspended' ? 'suspended' : 'activated'}.`, next === 'suspended' ? 'warn' : 'ok')
   }
 
-  const approveAccount = (u: PlatformUser) => {
+  const approveAccount = async (u: PlatformUser) => {
     if (!canAccess('canManageUsers')) { notify('No permission.', 'err'); return }
     setUsers(curr => curr.map(x => x.id === u.id ? { ...x, accountStatus: 'approved', status: 'active' } : x))
     setSelectedUser(prev => prev?.id === u.id ? { ...prev, accountStatus: 'approved', status: 'active' } : prev)
+
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${u.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ account_status: 'approved', kyc_status: 'approved', updated_at: new Date().toISOString() }),
+      })
+    } catch {
+      // silent
+    }
+
     addAudit('APPROVE_ACCOUNT', u.id, 'User', `Account approved for ${u.name} (${u.email})`, 'info')
     notify(`${u.name}'s account approved and activated.`)
   }
