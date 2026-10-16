@@ -1115,7 +1115,7 @@ export default function App() {
   const [user, setUser] = useState<{ id: string; fullName: string; email: string; phone: string; country: string; avatarPath: string | null; role: 'client' | 'admin'; emailVerified: boolean; accountStatus: 'pending' | 'active' } | null>(null)
 
   useEffect(() => {
-    if (!supabaseConfigured || !supabase || !user) return
+    if (!supabaseConfigured || !supabase || !user || user.id === 'local-demo-user') return
     const fetchHistoryTxns = async () => {
       const { data } = await supabase!.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
       if (data) setAppTransactions(data)
@@ -1125,7 +1125,7 @@ export default function App() {
 
   useEffect(() => {
     const checkTradeAllocation = async () => {
-      if (!supabaseConfigured || !supabase || !user) {
+      if (!supabaseConfigured || !supabase || !user || user.id === 'local-demo-user') {
         const localOverride = localStorage.getItem('admin_override_winner') === 'true'
         setForcedProfitMode(localOverride)
         return
@@ -1529,7 +1529,7 @@ export default function App() {
   // Fetch real wallet balances, multi-wallets, and trade history directly from Supabase
   useEffect(() => {
     const client = supabase
-    if (!client || !user) return
+    if (!client || !user || user.id === 'local-demo-user') return
     let mounted = true
 
     const loadRealData = async () => {

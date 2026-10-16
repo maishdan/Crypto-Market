@@ -4,7 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const isPlaceholder = (value: string) => /your-project-id|your-supabase-anon-or-publishable-key|placeholder/i.test(value)
-const isPublicKey = (value: string) => value.startsWith('sb_publishable_') || value.startsWith('eyJ')
+const isPublicKey = (value: string) => Boolean(value && value.length > 10 && !isPlaceholder(value))
 const isHttpsUrl = (value: string) => {
   try {
     return new URL(value).protocol === 'https:'
