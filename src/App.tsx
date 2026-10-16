@@ -1895,6 +1895,23 @@ export default function App() {
       })
     }
 
+    if (supabaseConfigured && supabase && user) {
+      newClosed.forEach((c) => {
+        void supabase.from('trades').insert({
+          user_id: user.id,
+          symbol: c.symbol,
+          direction: c.type,
+          lots: c.lots,
+          open_price: c.openPrice,
+          close_price: c.closePrice,
+          profit_loss: c.pnl,
+          status: c.pnl >= 0 ? 'WIN' : 'LOSS',
+          account_type: accountType === 'live' ? 'live' : 'demo',
+          closed_at: new Date().toISOString(),
+        })
+      })
+    }
+
     showNotice(`Closed all ${markedPositions.length} positions. Net P&L: $${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}`)
   }
 
