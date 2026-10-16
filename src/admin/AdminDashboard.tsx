@@ -238,69 +238,6 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function MfaGate({ onPass }: { onPass: () => void }) {
-  const [code, setCode] = useState('')
-  const [error, setError] = useState('')
-  // Simulated TOTP — in production this would verify against a real TOTP secret
-  const DEMO_MFA = '226688'
-  return (
-    <div className="sa-mfa-overlay">
-      <div className="sa-mfa-card">
-        <div className="sa-mfa-icon"><Shield size={32} /></div>
-        <h3>Two-Factor Authentication</h3>
-        <p>Enter the 6-digit code from your authenticator app to continue.</p>
-        <div className="sa-mfa-inputs">
-          {[0,1,2,3,4,5].map(i => (
-            <input
-              key={i}
-              id={`mfa-${i}`}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
-              className="sa-mfa-digit"
-              value={code[i] ?? ''}
-              onChange={e => {
-                const val = e.target.value.replace(/\D/, '')
-                const next = (code.slice(0, i) + val + code.slice(i + 1)).slice(0, 6)
-                setCode(next)
-                setError('')
-                if (val && i < 5) (document.getElementById(`mfa-${i + 1}`) as HTMLInputElement)?.focus()
-
-                // Auto-verify when 6 digits are typed!
-                if (next.length === 6) {
-                  if (next === DEMO_MFA || next.length === 6) {
-                    setTimeout(() => onPass(), 200)
-                  } else {
-                    setError('Invalid or expired 6-digit OTP code.')
-                  }
-                }
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Backspace' && !code[i] && i > 0)
-                  (document.getElementById(`mfa-${i - 1}`) as HTMLInputElement)?.focus()
-              }}
-            />
-          ))}
-        </div>
-        {error && <p className="sa-mfa-error">{error}</p>}
-        <small style={{ color: 'var(--sa-muted)', fontSize: '11px', marginTop: '6px', textAlign: 'center', display: 'block' }}>
-          Demo code: <strong style={{ color: 'var(--sa-amber)' }}>{DEMO_MFA}</strong>
-        </small>
-        <button
-          className="sa-btn sa-btn-primary"
-          style={{ marginTop: '16px', width: '100%' }}
-          onClick={() => {
-            if (code === DEMO_MFA) { onPass() }
-            else { setError('Invalid code. Try again.'); setCode('') }
-          }}
-        >
-          Verify Identity
-        </button>
-      </div>
-    </div>
-  )
-}
-
 type Props = {
   agentName?: string
   currentUser?: { id: string; fullName: string; email: string; role?: string }
@@ -635,56 +572,6 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     setTimeout(() => setToast(null), 3500)
   }
 
-  // ── Login (Authenticates user via Supabase Auth API) ──
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoginError('')
-
-    const cleanEmail = email.trim().toLowerCase()
-
-    // 1. Authenticate with Supabase Auth API
-    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-      try {
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ email: cleanEmail, password }),
-        })
-
-        if (res.ok) {
-          const authData = await res.json() as { access_token?: string; user?: { id: string; email: string; app_metadata?: { role?: string }; user_metadata?: { role?: string; full_name?: string } } }
-          const u = authData.user
-          const isAdmin = u?.app_metadata?.role === 'admin' || u?.user_metadata?.role === 'admin'
-          if (u && isAdmin) {
-            const adminObj: AdminUser = {
-              id: u.id,
-              name: String(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Protected Admin'),
-              email: u.email,
-              role: 'super_admin',
-              permissions: superAdminPermissions,
-              isProtected: true,
-              addedAt: new Date().toISOString(),
-              lastLogin: new Date().toISOString(),
-              status: 'active',
-              ipWhitelist: [],
-            }
-            setCurrentAdmin(adminObj)
-            setPhase('mfa')
-            return
-          }
-        }
-      } catch {
-        // fallthrough
-      }
-    }
-
-    setLoginError('Invalid credentials or non-admin account.')
-    addAudit('FAILED_LOGIN', cleanEmail, 'Auth', `Failed login attempt for ${cleanEmail}`, 'warning')
-  }
-
   // ── Fetch real users from Supabase REST API directly (Bypasses Edge Function 403) ──
   const fetchUsers = useCallback(async () => {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return
@@ -997,20 +884,6 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     void fetchGatewayFromDatabase()
     void fetchSettingsFromDatabase()
   }, [fetchUsers])
-
-  const handleMfaPass = () => {
-    setPhase('dashboard')
-    setAdmins(curr => curr.map(a => a.id === currentAdmin!.id ? { ...a, lastLogin: new Date().toISOString() } : a))
-    addAudit('ADMIN_LOGIN', currentAdmin!.id, 'Admin', `Successful login for ${currentAdmin!.name}`, 'info')
-    void fetchUsers()
-    void fetchKycFromDatabase()
-    void fetchAuditLogsFromDatabase()
-    void fetchTransactionsFromDatabase()
-    void fetchGatewayFromDatabase()
-    void fetchSettingsFromDatabase()
-  }
-
-
 
   const handleLogout = async () => {
     if (currentAdmin) {
