@@ -1554,11 +1554,33 @@ export default function App() {
             pnl: Number(t.profit_loss),
             closedAt: new Date(t.closed_at || t.created_at).toISOString().replace('T', ' ').substring(0, 19),
           }))
+
+        const openFromDb = tradesData
+          .filter(t => t.status === 'OPEN')
+          .map(t => ({
+            id: typeof t.id === 'number' ? t.id : Date.now(),
+            symbol: t.symbol,
+            type: t.direction as 'BUY' | 'SELL',
+            lots: Number(t.lots),
+            openPrice: Number(t.open_price),
+            profit: Number(t.profit_loss || 0),
+            margin: Number(t.open_price) * Number(t.lots) * 100000 / 500,
+            contractSize: t.symbol.includes('XAU') ? 100 : t.symbol.includes('XAG') ? 5000 : 100000,
+          }))
+
         if (closed.length > 0) {
           setClosedTrades(curr => {
             const ids = new Set(curr.map(t => String(t.id)))
             const uniqueSupabase = closed.filter(t => !ids.has(String(t.id)))
             return [...curr, ...uniqueSupabase]
+          })
+        }
+
+        if (openFromDb.length > 0) {
+          setOpenPositions(curr => {
+            const ids = new Set(curr.map(p => String(p.id)))
+            const uniqueDb = openFromDb.filter(p => !ids.has(String(p.id)))
+            return [...curr, ...uniqueDb]
           })
         }
       }
