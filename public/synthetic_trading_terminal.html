@@ -311,7 +311,7 @@
     </aside>
 
     <!-- Center Section: Chart + Running Indexes Bar -->
-    <main class="flex-1 flex flex-col relative bg-[#0b0e14] overflow-hidden min-h-[500px] h-full">
+    <main style="flex: 1; display: flex; flex-direction: column; position: relative; background-color: #0b0e14; overflow: hidden; min-height: 520px; height: 100%;">
       <!-- Top Left Asset Overlay Card with Market Selector Dropdown -->
       <div class="absolute top-4 left-4 z-50">
         <div id="assetSelectorCard" onclick="toggleMarketDropdown()" class="bg-[#121824]/90 border border-gray-800 backdrop-blur-md rounded-xl p-3 flex items-center gap-3 shadow-xl cursor-pointer hover:border-gray-700 transition">
@@ -341,12 +341,12 @@
       </div>
 
       <!-- Live Chart Canvas Wrapper -->
-      <div id="chartCanvasWrapper" class="relative w-full h-[450px] min-h-[450px]">
+      <div id="chartCanvasWrapper" style="position: relative; width: 100%; height: 480px; min-height: 480px; flex: 1;">
         <button type="button" onclick="toggleChartFullscreen()" class="absolute top-3 right-3 z-20 bg-gray-900/80 border border-gray-700/80 text-teal-400 hover:text-white px-2.5 py-1 rounded-lg text-xs font-semibold shadow-lg backdrop-blur-md transition flex items-center gap-1.5">
           <i class="fa-solid fa-expand" id="fullscreenIcon"></i> <span id="fullscreenText">Fullscreen</span>
         </button>
-        <div class="absolute inset-0 p-3 pb-16">
-          <canvas id="liveTickChart" class="w-full h-full block"></canvas>
+        <div style="position: absolute; inset: 0; padding: 12px; padding-bottom: 64px;">
+          <canvas id="liveTickChart" style="width: 100%; height: 100%; display: block;"></canvas>
         </div>
 
         <!-- RUNNING INDEXES BAR (Overlayed at Bottom over Chart, extending across like Deriv) -->
@@ -689,75 +689,188 @@
       executeTrade(direction);
     };
 
-    // Custom Chart.js Plugin for Drawing Overlay
-    const customOverlayPlugin = {
-      id: 'customOverlayPlugin',
-      afterDraw: (chart) => {
-        const { ctx: chartCtx, chartArea } = chart;
-        if (!chartArea || !userDrawings || userDrawings.length === 0) return;
+    // Native HTML5 Canvas 2D Chart Renderer (Failsafe & Ultra-Fast)
+    function renderNativeTickChart() {
+      const canvas = document.getElementById('liveTickChart');
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
 
-        chartCtx.save();
-        chartCtx.strokeStyle = '#2dd4bf';
-        chartCtx.lineWidth = 2.2;
-        chartCtx.lineCap = 'round';
-        chartCtx.lineJoin = 'round';
+      if (rect.width === 0 || rect.height === 0) return;
 
-        userDrawings.forEach(path => {
-          if (!path || path.length < 2) return;
-          chartCtx.beginPath();
-          chartCtx.moveTo(path[0].x, path[0].y);
-          for (let i = 1; i < path.length; i++) {
-            chartCtx.lineTo(path[i].x, path[i].y);
-          }
-          chartCtx.stroke();
-        });
-        chartCtx.restore();
+      if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
       }
-    };
 
-    Chart.register(customOverlayPlugin);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    // Chart Setup
-    const ctx = document.getElementById('liveTickChart').getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-    gradient.addColorStop(0, 'rgba(20, 184, 166, 0.25)');
-    gradient.addColorStop(1, 'rgba(20, 184, 166, 0.0)');
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
 
-    const tickChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: priceHistory.map((_, i) => i + 1),
-        datasets: [{
-          label: activeMarket.name,
-          data: [...priceHistory],
-          borderColor: '#2dd4bf',
-          borderWidth: 2,
-          pointRadius: priceHistory.map((_, i) => i === priceHistory.length - 1 ? 5 : 0),
-          pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#2dd4bf',
-          pointBorderWidth: 2,
-          fill: true,
-          backgroundColor: gradient,
-          tension: 0.15
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 120 },
-        layout: { padding: { top: 12, bottom: 12, left: 8, right: 8 } },
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { display: false },
-          y: {
-            position: 'right',
-            grid: { color: 'rgba(255, 255, 255, 0.04)' },
-            ticks: { color: '#9ca3af', font: { family: 'monospace', size: 10 } }
+      const padRight = 75;
+      const padTop = 20;
+      const padBottom = 25;
+      const padLeft = 15;
+      const graphWidth = Math.max(10, rect.width - padLeft - padRight);
+      const graphHeight = Math.max(10, rect.height - padTop - padBottom);
+
+      const prices = priceHistory.length > 0 ? priceHistory : [activeMarket.basePrice];
+      const minP = Math.min(...prices) * 0.9998;
+      const maxP = Math.max(...prices) * 1.0002;
+      const rangeP = Math.max(0.01, maxP - minP);
+
+      // Draw Gridlines & Right Y-Axis Price Ticks
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'left';
+
+      const steps = 5;
+      for (let i = 0; i <= steps; i++) {
+        const y = padTop + (graphHeight * i) / steps;
+        const val = maxP - (rangeP * i) / steps;
+
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(rect.width - padRight, y);
+        ctx.stroke();
+
+        ctx.fillText(val.toFixed(2), rect.width - padRight + 8, y + 3);
+      }
+
+      if (prices.length >= 2) {
+        const pts = prices.map((p, idx) => {
+          const x = padLeft + (graphWidth * idx) / (prices.length - 1);
+          const y = padTop + graphHeight * (1 - (p - minP) / rangeP);
+          return { x, y };
+        });
+
+        const lastP = prices[prices.length - 1];
+        const prevP = prices[prices.length - 2] || lastP;
+        const isUp = lastP >= prevP;
+
+        // Gradient Fill Below Trend Line
+        const grad = ctx.createLinearGradient(0, padTop, 0, rect.height - padBottom);
+        grad.addColorStop(0, isUp ? 'rgba(45, 212, 191, 0.35)' : 'rgba(244, 63, 94, 0.35)');
+        grad.addColorStop(1, 'rgba(15, 23, 42, 0.0)');
+
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.lineTo(pts[pts.length - 1].x, rect.height - padBottom);
+        ctx.lineTo(pts[0].x, rect.height - padBottom);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Main Trend Line
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.strokeStyle = isUp ? '#2dd4bf' : '#f43f5e';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+
+        // Latest Tick Head Pulsing Circle
+        const lastPt = pts[pts.length - 1];
+        ctx.beginPath();
+        ctx.arc(lastPt.x, lastPt.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = isUp ? '#2dd4bf' : '#f43f5e';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+    window.renderNativeTickChart = renderNativeTickChart;
+
+    // Custom Chart.js Plugin for Drawing Overlay
+    try {
+      if (typeof Chart !== 'undefined') {
+        const customOverlayPlugin = {
+          id: 'customOverlayPlugin',
+          afterDraw: (chart) => {
+            const { ctx: chartCtx, chartArea } = chart;
+            if (!chartArea || !userDrawings || userDrawings.length === 0) return;
+
+            chartCtx.save();
+            chartCtx.strokeStyle = '#2dd4bf';
+            chartCtx.lineWidth = 2.2;
+            chartCtx.lineCap = 'round';
+            chartCtx.lineJoin = 'round';
+
+            userDrawings.forEach(path => {
+              if (!path || path.length < 2) return;
+              chartCtx.beginPath();
+              chartCtx.moveTo(path[0].x, path[0].y);
+              for (let i = 1; i < path.length; i++) {
+                chartCtx.lineTo(path[i].x, path[i].y);
+              }
+              chartCtx.stroke();
+            });
+            chartCtx.restore();
           }
+        };
+
+        Chart.register(customOverlayPlugin);
+
+        window.priceHistory = priceHistory;
+        const canvasEl = document.getElementById('liveTickChart');
+        if (canvasEl) {
+          const ctx = canvasEl.getContext('2d');
+          const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+          gradient.addColorStop(0, 'rgba(20, 184, 166, 0.25)');
+          gradient.addColorStop(1, 'rgba(20, 184, 166, 0.0)');
+
+          window.tickChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: priceHistory.map((_, i) => i + 1),
+              datasets: [{
+                label: activeMarket.name,
+                data: [...priceHistory],
+                borderColor: '#2dd4bf',
+                borderWidth: 2,
+                pointRadius: priceHistory.map((_, i) => i === priceHistory.length - 1 ? 5 : 0),
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#2dd4bf',
+                pointBorderWidth: 2,
+                fill: true,
+                backgroundColor: gradient,
+                tension: 0.15
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: { duration: 120 },
+              layout: { padding: { top: 12, bottom: 12, left: 8, right: 8 } },
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { display: false },
+                y: {
+                  position: 'right',
+                  grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                  ticks: { color: '#9ca3af', font: { family: 'monospace', size: 10 } }
+                }
+              }
+            }
+          });
         }
       }
-    });
-    tickChart.update();
+    } catch (err) {
+      console.warn('Chart.js setup fallback:', err);
+    }
 
     window.zoomChart = function(factor) {
       if (factor === 1.0) currentZoom = 1.0;
@@ -1109,23 +1222,30 @@
       digitHistory.push(lastDigit);
       if (digitHistory.length > 100) digitHistory.shift();
 
-      // Update Chart Datasets according to current Chart Style & Indicators
-      if (currentChartStyleIndex === 2) {
-        tickChart.data.datasets[0].data = [...priceHistory];
-        tickChart.data.datasets[0].backgroundColor = priceHistory.map((p, i) =>
-          i === 0 ? '#22c55e' : p >= priceHistory[i - 1] ? '#22c55e' : '#ef4444'
-        );
-      } else {
-        tickChart.data.labels = priceHistory.map((_, i) => i + 1);
-        tickChart.data.datasets[0].data = [...priceHistory];
-        tickChart.data.datasets[0].pointRadius = priceHistory.map((_, i) => i === priceHistory.length - 1 ? 5 : 0);
-        tickChart.data.datasets[0].borderColor = change >= 0 ? '#2dd4bf' : '#f43f5e';
-      }
+      renderNativeTickChart();
 
-      if (currentIndicatorMode !== 'off') {
-        updateChartIndicators();
-      } else {
-        tickChart.update('none');
+      try {
+        if (window.tickChart) {
+          if (currentChartStyleIndex === 2) {
+            window.tickChart.data.datasets[0].data = [...priceHistory];
+            window.tickChart.data.datasets[0].backgroundColor = priceHistory.map((p, i) =>
+              i === 0 ? '#22c55e' : p >= priceHistory[i - 1] ? '#22c55e' : '#ef4444'
+            );
+          } else {
+            window.tickChart.data.labels = priceHistory.map((_, i) => i + 1);
+            window.tickChart.data.datasets[0].data = [...priceHistory];
+            window.tickChart.data.datasets[0].pointRadius = priceHistory.map((_, i) => i === priceHistory.length - 1 ? 5 : 0);
+            window.tickChart.data.datasets[0].borderColor = change >= 0 ? '#2dd4bf' : '#f43f5e';
+          }
+
+          if (currentIndicatorMode !== 'off') {
+            updateChartIndicators();
+          } else {
+            window.tickChart.update('none');
+          }
+        }
+      } catch (err) {
+        // native canvas renderer active
       }
 
       // Update Displays
@@ -1428,12 +1548,25 @@
       });
     }
 
+    // Expose all interactive functions globally on window
+    window.toggleMarketDropdown = toggleMarketDropdown;
+    window.selectMarket = selectMarket;
+    window.setMode = setMode;
+    window.adjustAmount = adjustAmount;
+    window.selectPredictionDigit = selectPredictionDigit;
+    window.openFundsModal = openFundsModal;
+    window.renderLogTable = renderLogTable;
+    window.updateRunningIndexesUI = updateRunningIndexesUI;
+    window.updatePayoutDisplays = updatePayoutDisplays;
+
     // Initial Setup
     renderMarketList();
     renderDigitPredictionGrid();
     updateRunningIndexesUI();
     updatePayoutDisplays();
     renderLogTable();
+    renderNativeTickChart();
+    window.addEventListener('resize', renderNativeTickChart);
   </script>
 </body>
 </html>

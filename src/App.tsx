@@ -3594,12 +3594,14 @@ export default function App() {
 
 
   const renderSyntheticContracts = () => (
-    <iframe
-      ref={syntheticTerminalRef}
-      className="synthetic-terminal-iframe"
-      src={`/synthetic_trading_terminal.html?theme=${theme}`}
-      title="Synthetic Trading Terminal"
-      onLoad={(event) => {
+    <div style={{ width: '100%', height: 'calc(100vh - 90px)', minHeight: '720px', display: 'flex', flexDirection: 'column' }}>
+      <iframe
+        ref={syntheticTerminalRef}
+        className="synthetic-terminal-iframe"
+        src={`/synthetic_trading_terminal.html?theme=${theme}`}
+        title="Synthetic Trading Terminal"
+        style={{ width: '100%', height: '100%', minHeight: '720px', border: '0', display: 'block' }}
+        onLoad={(event) => {
         if (event.currentTarget.contentWindow) {
           try {
             event.currentTarget.contentWindow.postMessage({ type: 'EXSTRADE_THEME_CHANGE', theme }, '*')
@@ -3628,6 +3630,7 @@ export default function App() {
         const accountBridge = frameDocument.createElement('script')
         accountBridge.textContent = `
           (() => {
+            const publishBalance = () => { if (typeof syncBalanceToParent === 'function') syncBalanceToParent() }
             const headerActions = document.querySelector('body > header > div:last-child')
             const accountPanel = headerActions?.firstElementChild
             const accountBalanceDisplay = document.getElementById('accountBalance')
@@ -3645,7 +3648,7 @@ export default function App() {
             headerActions.insertBefore(accountSelect, accountPanel)
             resetButton?.remove()
 
-            if (accountPanel) (accountPanel as HTMLElement).style.display = 'none'
+            if (accountPanel) accountPanel.style.display = 'none'
 
             const createButton = document.createElement('button')
             createButton.type = 'button'
@@ -3706,6 +3709,8 @@ export default function App() {
             overlay.style.cssText = 'position:absolute;pointer-events:none;z-index:5;'
             if (chartContainer && chartCanvas) chartContainer.append(overlay)
 
+            const getChart = () => window.tickChart
+            const getPrices = () => window.priceHistory || []
             let crosshairEnabled = false
             let drawingEnabled = false
             let movingAverageEnabled = false
@@ -3764,8 +3769,10 @@ export default function App() {
               }
             }
             const refreshZoom = () => {
+              const tickChart = getChart()
+              const priceHistory = getPrices()
               if (!tickChart || zoomLevel === 1 || !priceHistory.length) {
-                if (tickChart?.options.scales.y) {
+                if (tickChart?.options?.scales?.y) {
                   delete tickChart.options.scales.y.min
                   delete tickChart.options.scales.y.max
                 }
@@ -3779,10 +3786,13 @@ export default function App() {
               tickChart.options.scales.y.max = center + range / 2
             }
 
-            if (chartCanvas && chartContainer && tickChart) {
-              const originalUpdate = tickChart.update.bind(tickChart)
-              tickChart.update = (...args) => {
-                if (movingAverageEnabled) {
+            const chartInstance = getChart()
+            if (chartCanvas && chartContainer && chartInstance) {
+              const originalUpdate = chartInstance.update.bind(chartInstance)
+              chartInstance.update = (...args) => {
+                const tickChart = getChart()
+                const priceHistory = getPrices()
+                if (movingAverageEnabled && tickChart) {
                   const average = tickChart.data.datasets.find((dataset) => dataset.label === '5-Tick Moving Average')
                   if (average) average.data = priceHistory.map((_, index) => {
                     const slice = priceHistory.slice(Math.max(0, index - 4), index + 1)
@@ -3843,6 +3853,8 @@ export default function App() {
             })
             toolButtons[2]?.addEventListener('click', () => {
               movingAverageEnabled = !movingAverageEnabled
+              const tickChart = getChart()
+              if (!tickChart) return
               const datasetIndex = tickChart.data.datasets.findIndex((dataset) => dataset.label === '5-Tick Moving Average')
               if (movingAverageEnabled && datasetIndex < 0) {
                 tickChart.data.datasets.push({ type: 'line', label: '5-Tick Moving Average', data: [], borderColor: '#f59e0b', borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.15 })
@@ -3853,19 +3865,22 @@ export default function App() {
               tickChart.update()
             })
             toolButtons[3]?.addEventListener('click', () => {
+              const tickChart = getChart()
+              if (!tickChart) return
               const lineChart = tickChart.config.type === 'bar'
               tickChart.config.type = lineChart ? 'line' : 'bar'
               const priceDataset = tickChart.data.datasets[0]
               priceDataset.fill = lineChart
-              priceDataset.backgroundColor = lineChart ? gradient : 'rgba(0, 168, 150, 0.5)'
+              priceDataset.backgroundColor = lineChart ? 'rgba(20, 184, 166, 0.25)' : 'rgba(0, 168, 150, 0.5)'
               priceDataset.borderWidth = lineChart ? 2 : 1
               setToolState(3, !lineChart, lineChart ? 'Switch to Line Chart' : 'Switch to Bar Chart')
               tickChart.update()
             })
             window.zoomChart = (factor) => {
+              const tickChart = getChart()
               zoomLevel = Math.max(0.2, Math.min(8, zoomLevel / factor))
               refreshZoom()
-              tickChart.update('none')
+              if (tickChart) tickChart.update('none')
             }
             window.setInterval(publishBalance, 1000)
             parent.postMessage({ type: 'EXSTRADE_TERMINAL_READY' }, location.origin)
@@ -3898,6 +3913,7 @@ export default function App() {
         syncSyntheticTerminalAccount()
       }}
     />
+    </div>
   )
 
   // VIEW 6: INSTITUTIONS / MULTI-CHART TERMINAL
@@ -5354,7 +5370,7 @@ export default function App() {
       </nav>
 
       {/* LIVE SUPPORT CHAT WIDGET */}
-      {user && user.id !== 'local-demo-user' && (
+      {user && (
         <LiveChat
           userId={user.id}
           userName={user.fullName || 'User'}
