@@ -1241,6 +1241,58 @@ export default function App() {
             }
           }
         }
+      } else if (message?.type === 'EXSTRADE_RECORD_TRADE') {
+        const t = message.trade
+        if (t) {
+          const pnl = Number(t.profitLoss || 0)
+          const isWin = pnl >= 0
+          const accType = t.accountType || (accountType === 'live' ? 'live' : 'demo')
+
+          if (accType === 'live') {
+            setLiveBalance(b => {
+              const next = Math.max(0, b + pnl)
+              if (supabase && user && user.id !== 'local-demo-user') {
+                void supabase.from('wallets').upsert({ user_id: user.id, live_balance: next, updated_at: new Date().toISOString() })
+              }
+              return next
+            })
+          } else {
+            setDemoBalance(b => {
+              const next = Math.max(0, b + pnl)
+              if (supabase && user && user.id !== 'local-demo-user') {
+                void supabase.from('wallets').upsert({ user_id: user.id, demo_balance: next, updated_at: new Date().toISOString() })
+              }
+              return next
+            })
+          }
+
+          if (supabaseConfigured && supabase && user && user.id !== 'local-demo-user') {
+            const client = supabase
+            void client.from('trades').insert({
+              user_id: user.id,
+              symbol: t.symbol,
+              direction: t.direction,
+              lots: t.lots,
+              open_price: t.openPrice,
+              close_price: t.closePrice,
+              profit_loss: pnl,
+              status: isWin ? 'WIN' : 'LOSS',
+              account_type: accType,
+              closed_at: new Date().toISOString(),
+            })
+          }
+
+          setClosedTrades(curr => [{
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            symbol: t.symbol,
+            type: t.direction,
+            lots: t.lots,
+            openPrice: t.openPrice,
+            closePrice: t.closePrice,
+            pnl,
+            closedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          }, ...curr])
+        }
       }
     }
 

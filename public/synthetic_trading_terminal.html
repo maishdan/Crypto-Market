@@ -1116,6 +1116,22 @@
             }
 
             trade.status = won ? 'WON' : 'LOST';
+            const profit = won ? Number((trade.stake * trade.mult + trade.executionNoise).toFixed(2)) : -trade.stake;
+
+            window.parent.postMessage({
+              type: 'EXSTRADE_RECORD_TRADE',
+              trade: {
+                symbol: trade.marketName || 'QUANTUM_VOL_10',
+                direction: trade.direction === 'higher' ? 'BUY' : 'SELL',
+                lots: Number((trade.stake / 10).toFixed(2)),
+                openPrice: trade.entryPrice,
+                closePrice: trade.entryPrice * (won ? 1.01 : 0.99),
+                profitLoss: profit,
+                status: won ? 'WIN' : 'LOSS',
+                accountType: selectedAccountType
+              }
+            }, location.origin);
+
             if (won) {
               const returnAmount = Number((trade.stake + (trade.stake * trade.mult) + (trade.executionNoise || 0)).toFixed(2));
               accountBalance += returnAmount;
