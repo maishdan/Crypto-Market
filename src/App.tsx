@@ -3872,9 +3872,9 @@ export default function App() {
           })()
         `
         frameDocument.body.append(accountBridge)
-        const executionLog = frameDocument.querySelector('body > footer') as HTMLElement | null
-        const logHeader = executionLog?.firstElementChild as HTMLElement | null
-        const logTable = executionLog?.lastElementChild as HTMLElement | null
+        const executionLog = (frameDocument.querySelector('body > footer') as HTMLElement | null)
+        const logHeader = (executionLog?.firstElementChild as HTMLElement | null)
+        const logTable = (executionLog?.lastElementChild as HTMLElement | null)
         if (executionLog && logHeader && logTable && !logHeader.querySelector('.synthetic-log-toggle')) {
           const toggle = frameDocument.createElement('button')
           toggle.type = 'button'
