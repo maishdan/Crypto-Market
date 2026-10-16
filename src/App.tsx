@@ -1556,8 +1556,7 @@ export default function App() {
           : typeof sessionUser.user_metadata.avatar_path === 'string'
             ? sessionUser.user_metadata.avatar_path
             : null
-      const isSuperAdminUid = sessionUser.id === '85b0dea3-99b6-40cd-903e-e52d708583e5' || sessionUser.id === '5339b520-3411-4cbc-9807-f33e3eb61037' || sessionUser.id === '57ef6472-7255-47d9-9ed9-7f054aa09ae6' || sessionUser.email === 'mutuagedeon77@gmail.com' || sessionUser.email === 'maishdan4940@gmail.com'
-      const role = (isSuperAdminUid || sessionUser.app_metadata?.role === 'admin' || sessionUser.user_metadata?.role === 'admin') ? 'admin' : 'client'
+      const role = (sessionUser.app_metadata?.role === 'admin' || sessionUser.user_metadata?.role === 'admin') ? 'admin' : 'client'
       const phone = String(sessionUser.user_metadata.phone ?? '')
       const country = String(sessionUser.user_metadata.country ?? '')
       const emailVerified = Boolean(sessionUser.email_confirmed_at)
@@ -4127,14 +4126,6 @@ export default function App() {
 
   // Auth Screen — NEXSMARKETS Portal
   const handleAuthLogin = async (email: string, password: string): Promise<string | null> => {
-    // Admin secret check — same login page, redirects to admin dashboard
-    const ADMIN_EMAIL = 'mutuagedeon77@gmail.com'
-    const ADMIN_PASSWORD = 'admin@exstrade2026'
-    if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      window.location.href = '/admin'
-      return null
-    }
-
     if (!supabase) {
       // Local fallback — accept any credentials instantly
       const name = email.includes('@') ? email.split('@')[0] : email

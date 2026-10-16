@@ -113,9 +113,6 @@ type AuditEntry = {
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 
-const SUPER_ADMIN_EMAIL = 'mutuagedeon77@gmail.com'
-const SUPER_ADMIN_PASSWORD = 'admin@exstrade2026'
-
 const superAdminPermissions: AdminPermissions = {
   canManageUsers: true,
   canApproveKyc: true,
@@ -146,8 +143,8 @@ const financeAdminPermissions: AdminPermissions = {
 const initialAdmins: AdminUser[] = [
   {
     id: 'adm-super-1',
-    name: 'Gedeon Mutua',
-    email: SUPER_ADMIN_EMAIL,
+    name: 'Protected Admin',
+    email: 'admin@nexsmarkets.com',
     role: 'super_admin',
     permissions: superAdminPermissions,
     isProtected: true,
@@ -325,12 +322,11 @@ export default function AdminDashboard() {
         if (!res.ok) return
         const u = await res.json() as { id?: string; email?: string; app_metadata?: { role?: string }; user_metadata?: { role?: string; full_name?: string } }
         if (u && u.id) {
-          const isSuperUid = u.id === '85b0dea3-99b6-40cd-903e-e52d708583e5' || u.id === '5339b520-3411-4cbc-9807-f33e3eb61037' || u.id === '57ef6472-7255-47d9-9ed9-7f054aa09ae6' || u.email === 'mutuagedeon77@gmail.com' || u.email === 'maishdan4940@gmail.com'
-          const isAdmin = isSuperUid || u.app_metadata?.role === 'admin' || u.user_metadata?.role === 'admin'
+          const isAdmin = u.app_metadata?.role === 'admin' || u.user_metadata?.role === 'admin'
           if (isAdmin) {
             const adminObj: AdminUser = {
               id: u.id,
-              name: String(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Super Admin'),
+              name: String(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Protected Admin'),
               email: u.email || 'admin@nexsmarkets.com',
               role: 'super_admin',
               permissions: superAdminPermissions,
@@ -515,15 +511,14 @@ export default function AdminDashboard() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  // ── Login (Authenticates real user passwords via Supabase + Admin fallback) ──
+  // ── Login (Authenticates user via Supabase Auth API) ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError('')
 
     const cleanEmail = email.trim().toLowerCase()
-    const isSuperAdminEmail = cleanEmail === 'maishdan4940@gmail.com' || cleanEmail === 'mutuagedeon77@gmail.com' || cleanEmail.includes('admin')
 
-    // 1. Authenticate with Supabase Auth API using real user password
+    // 1. Authenticate with Supabase Auth API
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       try {
         const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
@@ -536,12 +531,13 @@ export default function AdminDashboard() {
         })
 
         if (res.ok) {
-          const authData = await res.json() as { access_token?: string; user?: { id: string; email: string; user_metadata?: { full_name?: string } } }
+          const authData = await res.json() as { access_token?: string; user?: { id: string; email: string; app_metadata?: { role?: string }; user_metadata?: { role?: string; full_name?: string } } }
           const u = authData.user
-          if (u) {
+          const isAdmin = u?.app_metadata?.role === 'admin' || u?.user_metadata?.role === 'admin'
+          if (u && isAdmin) {
             const adminObj: AdminUser = {
               id: u.id,
-              name: String(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Super Admin'),
+              name: String(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Protected Admin'),
               email: u.email,
               role: 'super_admin',
               permissions: superAdminPermissions,
@@ -561,26 +557,7 @@ export default function AdminDashboard() {
       }
     }
 
-    // 2. Fallback check for admin emails or master admin password
-    if (isSuperAdminEmail || password === SUPER_ADMIN_PASSWORD) {
-      const match = admins.find(a => a.email.toLowerCase() === cleanEmail) || {
-        id: 'adm-' + Date.now(),
-        name: cleanEmail === 'maishdan4940@gmail.com' ? 'Daniel Maina' : 'Super Admin',
-        email: cleanEmail,
-        role: 'super_admin' as const,
-        permissions: superAdminPermissions,
-        isProtected: true,
-        addedAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        status: 'active' as const,
-        ipWhitelist: [],
-      }
-      setCurrentAdmin(match)
-      setPhase('mfa')
-      return
-    }
-
-    setLoginError('Invalid credentials. Please check your email and password.')
+    setLoginError('Invalid credentials or non-admin account.')
     addAudit('FAILED_LOGIN', cleanEmail, 'Auth', `Failed login attempt for ${cleanEmail}`, 'warning')
   }
 
