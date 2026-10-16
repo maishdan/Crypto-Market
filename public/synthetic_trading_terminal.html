@@ -311,7 +311,7 @@
     </aside>
 
     <!-- Center Section: Chart + Running Indexes Bar -->
-    <main class="flex-1 flex flex-col relative bg-[#0b0e14] overflow-hidden">
+    <main class="flex-1 flex flex-col relative bg-[#0b0e14] overflow-hidden min-h-[500px] h-full">
       <!-- Top Left Asset Overlay Card with Market Selector Dropdown -->
       <div class="absolute top-4 left-4 z-50">
         <div id="assetSelectorCard" onclick="toggleMarketDropdown()" class="bg-[#121824]/90 border border-gray-800 backdrop-blur-md rounded-xl p-3 flex items-center gap-3 shadow-xl cursor-pointer hover:border-gray-700 transition">
@@ -757,6 +757,7 @@
         }
       }
     });
+    tickChart.update();
 
     window.zoomChart = function(factor) {
       if (factor === 1.0) currentZoom = 1.0;
