@@ -25,6 +25,7 @@ type Props = {
   wallets: WalletBalances
   onTransfer: (from: keyof WalletBalances, to: keyof WalletBalances, amount: number) => void
   onDepositRequest: (amount: number, network: string, reference?: string) => void
+  onWithdrawalRequest?: (amount: number, gateway: string, address: string) => void
   adminAddresses: DepositAddress[]
   showNotice: (msg: string) => void
   minDepositUSD?: number
@@ -64,7 +65,7 @@ const ACTIVITY = [
 type StkStep = 'form' | 'pushing' | 'waiting' | 'verify' | 'done' | 'error'
 
 export default function FundsHub({
-  wallets, onTransfer, onDepositRequest, adminAddresses, showNotice,
+  wallets, onTransfer, onDepositRequest, onWithdrawalRequest, adminAddresses, showNotice,
   minDepositUSD = 10, minDepositKES = 100, minWithdrawalUSD = 10,
 }: Props) {
   const [tab, setTab] = useState<'deposit' | 'withdraw' | 'transfer'>('deposit')
@@ -175,7 +176,7 @@ export default function FundsHub({
     if (!amt || amt < minWithdrawalUSD) { showNotice(`Minimum withdrawal is $${minWithdrawalUSD}.`); return }
     if (wallets.main < amt) { showNotice('Insufficient main balance.'); return }
     if (!wAddr.trim()) { showNotice('Enter destination wallet address.'); return }
-    showNotice(`✅ Withdrawal of $${fmt(amt)} via ${wGateway} submitted.`)
+    onWithdrawalRequest?.(amt, wGateway, wAddr)
     setWAmt(''); setWAddr('')
   }
 

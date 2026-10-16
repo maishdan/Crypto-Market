@@ -11,6 +11,7 @@ import {
   CandlestickChart,
   CheckCircle2,
   TrendingUp,
+  TrendingDown,
   Settings,
   Pencil,
   Crosshair,
@@ -779,7 +780,9 @@ export default function App() {
   const [activeView, setActiveView] = useState<View>('synthetic')
   const [previousView, setPreviousView] = useState<View>('synthetic')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [modal, setModal] = useState<'deposit' | 'withdraw' | 'pine_script' | 'indicator_menu' | 'order' | 'create_demo' | null>(null)
+  const [modal, setModal] = useState<'deposit' | 'withdraw' | 'pine_script' | 'indicator_menu' | 'order' | 'create_demo' | 'trade_outcome' | 'withdrawal_success' | null>(null)
+  const [tradeOutcomeResult, setTradeOutcomeResult] = useState<{ symbol: string; pnl: number; type: string } | null>(null)
+  const [withdrawalSuccessData, setWithdrawalSuccessData] = useState<{ amount: number; gateway: string } | null>(null)
   const [amount, setAmount] = useState('500')
   const [withdrawAmount] = useState('100')
   const [selectedNetwork, setSelectedNetwork] = useState('USDT-TRC20')
@@ -1536,6 +1539,31 @@ export default function App() {
     showNotice(`Demo balance restored to $${demoStartingBalance.toFixed(2)}.`)
   }
 
+  const handleWithdrawalRequest = async (amount: number, gateway: string, address: string) => {
+    if (accountType === 'demo') {
+      setDemoBalance(b => Math.max(0, b - amount))
+    } else {
+      setLiveBalance(b => Math.max(0, b - amount))
+      setWalletBalances(w => ({ ...w, main: Math.max(0, w.main - amount) }))
+    }
+
+    if (supabaseConfigured && supabase && user) {
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'withdrawal',
+        amount,
+        total_amount: amount,
+        gateway_network: gateway,
+        reference_code: 'WD_' + Date.now(),
+        status: 'pending', // Allocation stage
+        admin_notes: `Withdrawal request to ${address}. Pending processing & allocation stage.`,
+      })
+    }
+
+    setWithdrawalSuccessData({ amount, gateway })
+    setModal('withdrawal_success')
+  }
+
   // Close Running Trade Handler
   const handleClosePosition = (posId: number) => {
     const pos = markedPositions.find((position) => position.id === posId)
@@ -1565,9 +1593,11 @@ export default function App() {
       setDemoBalance((balance) => balance + pos.profit)
     } else if (accountType === 'live') {
       setLiveBalance((balance) => Math.max(0, balance + pos.profit))
+      setWalletBalances(w => ({ ...w, main: Math.max(0, w.main + pos.profit) }))
     }
 
-    showNotice(`Closed position #${posId} (${pos.symbol}) with P&L: $${pos.profit >= 0 ? '+' : ''}${pos.profit.toFixed(2)}`)
+    setTradeOutcomeResult({ symbol: pos.symbol, pnl: pos.profit, type: pos.type })
+    setModal('trade_outcome')
   }
 
   const handleExecuteTrade = (isBuy = true, symbol = selectedAsset, quotedPrice?: number) => {
@@ -3641,6 +3671,7 @@ export default function App() {
         wallets={walletBalances}
         onTransfer={handleWalletTransfer}
         onDepositRequest={handleFundsDepositRequest}
+        onWithdrawalRequest={handleWithdrawalRequest}
         adminAddresses={adminAddresses.map(a => ({ ...a, enabled: true }))}
         showNotice={showNotice}
         minDepositUSD={minDepositUSD}
@@ -4593,6 +4624,67 @@ export default function App() {
 
             <button type="button" className="button button-mint" onClick={closeModal} style={{ marginTop: '10px' }}>
               <Check size={16} /> Apply Indicators to Canvas
+            </button>
+          </section>
+        </div>
+      )}
+
+      {/* Trade Outcome Modal (Profit / Loss) */}
+      {modal === 'trade_outcome' && tradeOutcomeResult && (
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) { setModal(null); setTradeOutcomeResult(null) } }}>
+          <section className="funds-modal" style={{ maxWidth: '420px', width: '92%', textAlign: 'center', padding: '32px 24px', border: tradeOutcomeResult.pnl >= 0 ? '2px solid #00c853' : '2px solid #ff3d00', boxShadow: tradeOutcomeResult.pnl >= 0 ? '0 0 40px rgba(0,200,83,0.3)' : '0 0 40px rgba(255,61,0,0.3)', margin: 'auto' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: tradeOutcomeResult.pnl >= 0 ? 'rgba(0,200,83,0.2)' : 'rgba(255,61,0,0.2)', display: 'grid', placeItems: 'center', margin: '0 auto 16px', color: tradeOutcomeResult.pnl >= 0 ? '#00c853' : '#ff3d00' }}>
+              {tradeOutcomeResult.pnl >= 0 ? <TrendingUp size={32} /> : <TrendingDown size={32} />}
+            </div>
+            <h2 style={{ fontSize: '24px', fontWeight: 800, color: tradeOutcomeResult.pnl >= 0 ? '#00c853' : '#ff3d00', letterSpacing: '1px', marginBottom: '8px' }}>
+              {tradeOutcomeResult.pnl >= 0 ? 'PROFIT' : 'LOSS'}
+            </h2>
+            <div style={{ fontSize: '28px', fontWeight: 900, color: 'var(--text-main)', marginBottom: '12px' }}>
+              {tradeOutcomeResult.pnl >= 0 ? '+' : ''}${tradeOutcomeResult.pnl.toFixed(2)}
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '24px' }}>
+              Trade for {tradeOutcomeResult.symbol} closed successfully.
+            </p>
+            <button type="button" className="button" style={{ width: '100%', background: tradeOutcomeResult.pnl >= 0 ? '#00c853' : '#ff3d00', color: '#000', fontWeight: 800, padding: '12px' }} onClick={() => { setModal(null); setTradeOutcomeResult(null) }}>
+              OK
+            </button>
+          </section>
+        </div>
+      )}
+
+      {/* Withdrawal Success & Allocation Ceremony Modal */}
+      {modal === 'withdrawal_success' && withdrawalSuccessData && (
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) { setModal(null); setWithdrawalSuccessData(null) } }}>
+          <section className="funds-modal ceremony-modal" style={{ maxWidth: '460px', width: '92%', textAlign: 'center', padding: '36px 28px', border: '2px solid #00e5ff', boxShadow: '0 0 50px rgba(0,229,255,0.35)', position: 'relative', overflow: 'hidden', margin: 'auto' }}>
+            {/* Bursting Ceremony Confetti Particles */}
+            <div className="ceremony-burst-particles">
+              {[...Array(12)].map((_, i) => (
+                <div key={i} className={`ceremony-particle p-${i}`} />
+              ))}
+            </div>
+
+            <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'rgba(0,229,255,0.15)', display: 'grid', placeItems: 'center', margin: '0 auto 16px', color: '#00e5ff' }}>
+              <Wallet size={34} />
+            </div>
+
+            <div style={{ fontSize: '11px', fontWeight: 800, color: '#00e676', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '4px' }}>
+              ✨ Withdrawal Successful &amp; Allocated ✨
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+              ${withdrawalSuccessData.amount.toFixed(2)} USD
+            </h2>
+
+            <div style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: '10px', padding: '12px 16px', margin: '16px 0 20px', textAlign: 'left' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#00e5ff', marginBottom: '4px' }}>
+                ⏳ Allocation Stage (Pending Transfer)
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                Kindly wait for funds to be sent to your account. Your withdrawal has been successfully logged in your History ledger.
+              </p>
+            </div>
+
+            <button type="button" className="button button-mint" style={{ width: '100%', fontWeight: 800, padding: '12px' }} onClick={() => { setModal(null); setWithdrawalSuccessData(null) }}>
+              OK
             </button>
           </section>
         </div>

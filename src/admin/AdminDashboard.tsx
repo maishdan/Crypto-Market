@@ -443,7 +443,7 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           user_id: user.id,
-          trade_outcome: nextMode === 'PROFIT' ? 'FORCE_PROFIT' : 'FORCE_LOSS',
+          trade_outcome: nextMode === 'PROFIT' ? 'FORCE_PROFIT' : 'HOUSE_LOSS',
           win_rate: nextMode === 'PROFIT' ? 85 : 0,
           updated_at: new Date().toISOString(),
         }),

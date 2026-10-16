@@ -784,7 +784,8 @@
   background: var(--sa-card);
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-r-md);
-  overflow: hidden;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .sa-panel > .sa-panel-head {
