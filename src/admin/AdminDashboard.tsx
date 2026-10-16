@@ -480,10 +480,16 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.location.hash = `#admin/${section}`
-      localStorage.setItem('admin_active_section', section)
+      if (currentAdmin) {
+        window.location.hash = `#admin/${section}`
+        localStorage.setItem('admin_active_section', section)
+      } else {
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname)
+        }
+      }
     }
-  }, [section])
+  }, [section, currentAdmin])
 
   useEffect(() => {
     const handleHashChange = () => {

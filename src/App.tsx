@@ -801,10 +801,16 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.location.hash = activeView
-      localStorage.setItem('app_active_view', activeView)
+      if (user) {
+        window.location.hash = activeView
+        localStorage.setItem('app_active_view', activeView)
+      } else {
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname)
+        }
+      }
     }
-  }, [activeView])
+  }, [activeView, user])
 
   useEffect(() => {
     const handleHashChange = () => {
