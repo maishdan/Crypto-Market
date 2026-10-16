@@ -1830,7 +1830,8 @@ export default function App() {
     }
 
     if (supabaseConfigured && supabase && user) {
-      void supabase.from('trades').insert({
+      const client = supabase
+      void client.from('trades').insert({
         user_id: user.id,
         symbol: pos.symbol,
         direction: pos.type,
@@ -1896,8 +1897,9 @@ export default function App() {
     }
 
     if (supabaseConfigured && supabase && user) {
+      const client = supabase
       newClosed.forEach((c) => {
-        void supabase.from('trades').insert({
+        void client.from('trades').insert({
           user_id: user.id,
           symbol: c.symbol,
           direction: c.type,
@@ -1968,7 +1970,8 @@ export default function App() {
     setOpenPositions(curr => [newPos, ...curr])
 
     if (supabaseConfigured && supabase && user) {
-      void supabase.from('trades').insert({
+      const client = supabase
+      void client.from('trades').insert({
         user_id: user.id,
         symbol,
         direction,
