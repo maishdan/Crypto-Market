@@ -994,44 +994,6 @@ export default function App() {
     }
   }, [openPositions])
 
-  // Auto-Trading Bot State
-  const [autoTraderActive, setAutoTraderActive] = useState(false)
-  const [autoTraderInterval, setAutoTraderInterval] = useState(5) // in seconds
-  const [autoTraderLots, setAutoTraderLots] = useState('1.0')
-  const [autoTraderDirection, setAutoTraderDirection] = useState<'AUTO' | 'BUY' | 'SELL'>('AUTO')
-  const [autoTradeCount, setAutoTradeCount] = useState(0)
-  const autoTradeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Auto-Trading Bot Execution Loop
-  useEffect(() => {
-    if (!autoTraderActive) {
-      if (autoTradeTimerRef.current) clearInterval(autoTradeTimerRef.current)
-      return
-    }
-
-    autoTradeTimerRef.current = setInterval(() => {
-      let isBuy = true
-      if (autoTraderDirection === 'BUY') {
-        isBuy = true
-      } else if (autoTraderDirection === 'SELL') {
-        isBuy = false
-      } else {
-        isBuy = Math.random() > 0.45
-      }
-
-      const targetLots = autoTraderLots || lotSize || '1.0'
-      const dirStr = isBuy ? 'BUY' : 'SELL'
-
-      handleExecuteTrade(isBuy, selectedAsset)
-      setAutoTradeCount(c => c + 1)
-      showNotice(`🤖 Quantum Auto-Bot placed ${dirStr} ${targetLots} ${selectedAsset}`)
-    }, autoTraderInterval * 1000)
-
-    return () => {
-      if (autoTradeTimerRef.current) clearInterval(autoTradeTimerRef.current)
-    }
-  }, [autoTraderActive, autoTraderInterval, autoTraderLots, autoTraderDirection, selectedAsset, lotSize])
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -1205,7 +1167,7 @@ export default function App() {
         })
         .subscribe()
 
-      return () => { void supabase.removeChannel(channel) }
+      return () => { if (supabase) void supabase.removeChannel(channel) }
     }
   }, [supabase, user, activeView])
 
@@ -2003,6 +1965,44 @@ export default function App() {
     const accLabel = accountType === 'live' ? 'REAL' : 'DEMO'
     showNotice(`✅ ${accLabel} ${direction} ${lots} ${symbol} opened at ${newPos.openPrice.toFixed(isForex ? (symbol.endsWith('JPY') ? 3 : 5) : 2)}. Margin: $${requiredMargin.toFixed(2)}.`)
   }
+
+  // Auto-Trading Bot State
+  const [autoTraderActive, setAutoTraderActive] = useState(false)
+  const [autoTraderInterval, setAutoTraderInterval] = useState(5) // in seconds
+  const [autoTraderLots, setAutoTraderLots] = useState('1.0')
+  const [autoTraderDirection, setAutoTraderDirection] = useState<'AUTO' | 'BUY' | 'SELL'>('AUTO')
+  const [autoTradeCount, setAutoTradeCount] = useState(0)
+  const autoTradeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Auto-Trading Bot Execution Loop
+  useEffect(() => {
+    if (!autoTraderActive) {
+      if (autoTradeTimerRef.current) clearInterval(autoTradeTimerRef.current)
+      return
+    }
+
+    autoTradeTimerRef.current = setInterval(() => {
+      let isBuy = true
+      if (autoTraderDirection === 'BUY') {
+        isBuy = true
+      } else if (autoTraderDirection === 'SELL') {
+        isBuy = false
+      } else {
+        isBuy = Math.random() > 0.45
+      }
+
+      const targetLots = autoTraderLots || lotSize || '1.0'
+      const dirStr = isBuy ? 'BUY' : 'SELL'
+
+      handleExecuteTrade(isBuy, selectedAsset)
+      setAutoTradeCount(c => c + 1)
+      showNotice(`🤖 Quantum Auto-Bot placed ${dirStr} ${targetLots} ${selectedAsset}`)
+    }, autoTraderInterval * 1000)
+
+    return () => {
+      if (autoTradeTimerRef.current) clearInterval(autoTradeTimerRef.current)
+    }
+  }, [autoTraderActive, autoTraderInterval, autoTraderLots, autoTraderDirection, selectedAsset, lotSize])
 
   // Navigation check for "Trade Now" / "Trade" CTAs
   const handleTradeNavigation = (targetAsset?: string) => {
