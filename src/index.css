@@ -1,4 +1,4 @@
-/* NEXSMARKETS — Base Reset & Vibrant Framed App Shell Perimeter Edge Beam */
+/* NEXSMARKETS — Base Reset, Framed App Shell Perimeter Edge Beam & Ceremony Effects */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -47,4 +47,43 @@ input:focus-visible {
   overflow: hidden;
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CEREMONY BURST PARTICLES ANIMATION (WITHDRAWAL SUCCESS)
+   ───────────────────────────────────────────────────────────────────────────── */
+.ceremony-burst-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ceremony-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #00e5ff;
+  border-radius: 50%;
+  animation: burstOut 1.4s cubic-bezier(0.1, 1, 0.3, 1) infinite;
+}
+
+.ceremony-particle.p-0  { background: #00e5ff; --dx: 130px; --dy: -130px; animation-delay: 0s; }
+.ceremony-particle.p-1  { background: #00e676; --dx: -140px; --dy: -110px; animation-delay: 0.1s; }
+.ceremony-particle.p-2  { background: #ffea00; --dx: 150px; --dy: 90px; animation-delay: 0.2s; }
+.ceremony-particle.p-3  { background: #d500f9; --dx: -120px; --dy: 130px; animation-delay: 0.15s; }
+.ceremony-particle.p-4  { background: #00c853; --dx: 0px; --dy: -160px; animation-delay: 0.25s; }
+.ceremony-particle.p-5  { background: #ff3d00; --dx: 0px; --dy: 160px; animation-delay: 0.05s; }
+.ceremony-particle.p-6  { background: #18ffff; --dx: 140px; --dy: -20px; animation-delay: 0.3s; }
+.ceremony-particle.p-7  { background: #00e676; --dx: -150px; --dy: 30px; animation-delay: 0.35s; }
+.ceremony-particle.p-8  { background: #ffea00; --dx: 90px; --dy: 140px; animation-delay: 0.12s; }
+.ceremony-particle.p-9  { background: #d500f9; --dx: -90px; --dy: -140px; animation-delay: 0.22s; }
+.ceremony-particle.p-10 { background: #00c853; --dx: 160px; --dy: 0px; animation-delay: 0.28s; }
+.ceremony-particle.p-11 { background: #00e5ff; --dx: -160px; --dy: 0px; animation-delay: 0.08s; }
+
+@keyframes burstOut {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 120px)), calc(-50% + var(--dy, -120px))) scale(1.8); opacity: 0; }
 }
