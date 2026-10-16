@@ -4409,7 +4409,7 @@ export default function App() {
 
   // IF LOGGED-IN USER IS AN ADMIN: Render 100% Standalone Full Admin Dashboard
   if (user.role === 'admin') {
-    return <AdminDashboard />
+    return <AdminDashboard currentUser={user} />
   }
 
   return (

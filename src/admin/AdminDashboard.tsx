@@ -11,6 +11,7 @@ import {
 import './AdminDashboard.css'
 import '../features/features.css'
 import AdminChatDesk from '../features/AdminChatDesk'
+import { supabase } from '../lib/supabase'
 
 // ─── Supabase config ──────────────────────────────────────────────────────────
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL      as string
@@ -299,23 +300,54 @@ function MfaGate({ onPass }: { onPass: () => void }) {
   )
 }
 
-export default function AdminDashboard() {
-  const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(null)
+type Props = {
+  agentName?: string
+  currentUser?: { id: string; fullName: string; email: string; role?: string }
+}
+
+export default function AdminDashboard({ currentUser }: Props = {}) {
+  const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
+    if (currentUser) {
+      return {
+        id: currentUser.id,
+        name: currentUser.fullName || currentUser.email.split('@')[0] || 'Protected Admin',
+        email: currentUser.email || 'admin@nexsmarkets.com',
+        role: 'super_admin',
+        permissions: superAdminPermissions,
+        isProtected: true,
+        addedAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        status: 'active',
+        ipWhitelist: [],
+      }
+    }
+    return null
+  })
 
   // Auto-authenticate signed-in admin user directly to Full Admin Dashboard
   useEffect(() => {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return
+    if (currentUser) {
+      setCurrentAdmin({
+        id: currentUser.id,
+        name: currentUser.fullName || currentUser.email.split('@')[0] || 'Protected Admin',
+        email: currentUser.email || 'admin@nexsmarkets.com',
+        role: 'super_admin',
+        permissions: superAdminPermissions,
+        isProtected: true,
+        addedAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        status: 'active',
+        ipWhitelist: [],
+      })
+      return
+    }
+
     const checkAdminSession = async () => {
+      if (!supabase) return
       try {
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        })
-        if (!res.ok) return
-        const u = await res.json() as { id?: string; email?: string; app_metadata?: { role?: string }; user_metadata?: { role?: string; full_name?: string } }
-        if (u && u.id) {
+        const { data: { session } } = await supabase.auth.getSession()
+        const u = session?.user
+        if (u) {
           const isAdmin = u.app_metadata?.role === 'admin' || u.user_metadata?.role === 'admin'
           if (isAdmin) {
             const adminObj: AdminUser = {
@@ -338,7 +370,7 @@ export default function AdminDashboard() {
       }
     }
     void checkAdminSession()
-  }, [])
+  }, [currentUser])
 
   // Session timeout (15 min inactivity)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1526,6 +1558,27 @@ export default function AdminDashboard() {
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER: DASHBOARD
   // ─────────────────────────────────────────────────────────────────────────
+
+  if (!currentAdmin) {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', background: '#090d16', color: '#fff', padding: '20px' }}>
+        <div style={{ background: '#101828', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '20px', padding: '36px', maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+          <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 52, height: 52, borderRadius: '12px', margin: '0 auto 16px', objectFit: 'cover' }} />
+          <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px', color: '#fff' }}>Admin Login Required</h2>
+          <p style={{ fontSize: '13px', color: '#6b85a8', lineHeight: '1.6', marginBottom: '24px' }}>
+            To access the Admin Dashboard, please sign in with an authorized Administrator account on the main login portal.
+          </p>
+          <button
+            className="sa-btn sa-btn-primary sa-btn-full"
+            onClick={() => window.location.href = '/'}
+            style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700 }}
+          >
+            Go to Main Login Portal &rarr;
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const navItems: { id: AdminSection; label: string; icon: typeof LayoutDashboard; perm?: keyof AdminPermissions; badge?: number }[] = [
     { id: 'overview',  label: 'Overview',     icon: LayoutDashboard },
