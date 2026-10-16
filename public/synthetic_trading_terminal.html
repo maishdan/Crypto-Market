@@ -997,6 +997,43 @@
     };
 
     function renderLogTable() {
+    window.closeSyntheticTrade = function(id) {
+      const trade = openTrades.find(t => t.id === id && t.status === 'OPEN');
+      if (!trade) return;
+
+      const currentPrice = priceHistory[priceHistory.length - 1] || trade.entryPrice;
+      const diff = (currentPrice - trade.entryPrice) * (trade.direction === 'higher' ? 1 : -1);
+      const profit = Number((diff * trade.stake * 0.4 + (trade.executionNoise || 0)).toFixed(2));
+      const won = profit >= 0;
+
+      trade.status = won ? 'WON' : 'LOST';
+
+      accountBalance += trade.stake + profit;
+      accountBalance = Math.max(0, Number(accountBalance.toFixed(2)));
+      const display = document.getElementById('accountBalance');
+      if (display) {
+        display.textContent = '$' + accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USD';
+      }
+      syncBalanceToParent();
+
+      window.parent.postMessage({
+        type: 'EXSTRADE_RECORD_TRADE',
+        trade: {
+          symbol: trade.marketName || 'QUANTUM_VOL_10',
+          direction: trade.direction === 'higher' ? 'BUY' : 'SELL',
+          lots: Number((trade.stake / 10).toFixed(2)),
+          openPrice: trade.entryPrice,
+          closePrice: currentPrice,
+          profitLoss: profit,
+          status: won ? 'WIN' : 'LOSS',
+          accountType: selectedAccountType
+        }
+      }, location.origin);
+
+      renderLogTable();
+    };
+
+    function renderLogTable() {
       const body = document.getElementById('logTableBody');
       const openCountDisplay = document.getElementById('openPositionsCount');
       if (!body) return;
@@ -1005,17 +1042,25 @@
       if (openCountDisplay) openCountDisplay.textContent = activeCount + ' Open';
 
       if (openTrades.length === 0) {
-        body.innerHTML = `<tr><td colspan="7" class="py-3 text-center text-gray-500 italic">No contract positions executed yet.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="8" class="py-3 text-center text-gray-500 italic">No contract positions executed yet.</td></tr>`;
         return;
       }
 
       body.innerHTML = openTrades.slice().reverse().map(trade => {
-        const currentPrice = priceHistory[priceHistory.length - 1];
+        const currentPrice = priceHistory[priceHistory.length - 1] || trade.entryPrice;
         let plText = '-';
         let plClass = 'text-gray-400';
-        let statusBadge = '<span class="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[10px]">OPEN (' + trade.ticksLeft + 't)</span>';
+        let statusBadge = '';
+        let actionBtn = '';
 
-        if (trade.status !== 'OPEN') {
+        if (trade.status === 'OPEN') {
+          const diff = (currentPrice - trade.entryPrice) * (trade.direction === 'higher' ? 1 : -1);
+          const currentProfit = Number((diff * trade.stake * 0.4).toFixed(2));
+          plText = (currentProfit >= 0 ? '+' : '') + '$' + currentProfit.toFixed(2);
+          plClass = currentProfit >= 0 ? 'text-teal-400 font-bold' : 'text-rose-400 font-bold';
+          statusBadge = '<span class="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[10px]">OPEN</span>';
+          actionBtn = `<button type="button" onclick="closeSyntheticTrade('${trade.id}')" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition">Close</button>`;
+        } else {
           const won = trade.status === 'WON';
           let profit = 0;
           if (won) {
@@ -1029,6 +1074,7 @@
           statusBadge = won
             ? '<span class="bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded text-[10px]">WON</span>'
             : '<span class="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded text-[10px]">LOST</span>';
+          actionBtn = '<span class="text-gray-500 text-[10px]">Closed</span>';
         }
 
         return `
@@ -1040,6 +1086,7 @@
             <td class="py-2 px-3">$${trade.stake.toFixed(2)}</td>
             <td class="py-2 px-3 ${plClass}">${plText}</td>
             <td class="py-2 px-3">${statusBadge}</td>
+            <td class="py-2 px-3">${actionBtn}</td>
           </tr>
         `;
       }).join('');
@@ -1100,39 +1147,7 @@
       }
 
       updateRunningIndexesUI();
-
-      // Process open trades settlement
-      openTrades.forEach(trade => {
-        if (trade.status === 'OPEN') {
-          trade.ticksLeft--;
-          if (trade.ticksLeft <= 0) {
-            let won = false;
-            if (selectedAccountType === 'demo') {
-              // Demo practice simulator: 80% PROFIT WIN RATE!
-              won = Math.random() < 0.80;
-            } else {
-              // Real Account: 100% HOUSE LOSS BY DEFAULT unless Admin allocated profit!
-              won = window.adminOverrideWinner === true ? (Math.random() < 0.85) : false;
-            }
-
-            trade.status = won ? 'WON' : 'LOST';
-            const profit = won ? Number((trade.stake * trade.mult + trade.executionNoise).toFixed(2)) : -trade.stake;
-
-            window.parent.postMessage({
-              type: 'EXSTRADE_RECORD_TRADE',
-              trade: {
-                symbol: trade.marketName || 'QUANTUM_VOL_10',
-                direction: trade.direction === 'higher' ? 'BUY' : 'SELL',
-                lots: Number((trade.stake / 10).toFixed(2)),
-                openPrice: trade.entryPrice,
-                closePrice: trade.entryPrice * (won ? 1.01 : 0.99),
-                profitLoss: profit,
-                status: won ? 'WIN' : 'LOSS',
-                accountType: selectedAccountType
-              }
-            }, location.origin);
-
-            if (won) {
+      renderLogTable();
               const returnAmount = Number((trade.stake + (trade.stake * trade.mult) + (trade.executionNoise || 0)).toFixed(2));
               accountBalance += returnAmount;
               accountBalance = Number(accountBalance.toFixed(2));
