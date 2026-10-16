@@ -39,57 +39,14 @@ input:focus-visible {
   color: #eef4ff;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   VIBRANT FRAMED APP SHELL PERIMETER EDGE BEAM
-   - Framed with margin from browser edges (following container margins)
-   - Thin 2px glowing rainbow line with vivid neon drop shadow
-   - Moving continuously in a clockwise direction along the edges
-   - Nothing in the center at all
-   ───────────────────────────────────────────────────────────────────────────── */
-
-@keyframes perimeterEdgeSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 .app-shell {
   position: relative;
   isolation: isolate;
-  margin: 12px;
-  border-radius: 18px;
+  margin: 0;
+  border-radius: 0;
   overflow: hidden;
-  min-height: calc(100vh - 24px) !important;
-  min-height: calc(100dvh - 24px) !important;
-}
-
-.app-shell::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px; /* Thin line strictly along app shell edges */
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    transparent 35deg,
-    rgba(0, 229, 255, 0.15) 60deg,
-    #00e5ff 90deg,
-    #00e676 115deg,
-    #ffea00 140deg,
-    #ff3d00 165deg,
-    #d500f9 190deg,
-    #18ffff 215deg,
-    rgba(24, 255, 255, 0.9) 230deg,
-    transparent 260deg,
-    transparent 360deg
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  animation: perimeterEdgeSpin 7s linear infinite; /* Smooth, vibrant motion */
-  filter: drop-shadow(0 0 10px #00e5ff) drop-shadow(0 0 20px #00e676);
-  z-index: 99999;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
