@@ -309,7 +309,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   background: linear-gradient(135deg, #007bff, #00b4d8);
   border: none;
   border-radius: 99px;
@@ -320,6 +320,13 @@
   cursor: pointer;
   box-shadow: 0 6px 24px rgba(0, 180, 216, 0.4);
   transition: all 0.2s;
+}
+
+@media (min-width: 1024px) {
+  .chat-fab {
+    right: 340px;
+    bottom: 20px;
+  }
 }
 
 .chat-fab:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(0,180,216,0.5); }
