@@ -3628,13 +3628,13 @@ export default function App() {
 
 
   const renderSyntheticContracts = () => (
-    <div style={{ width: '100%', height: 'calc(100vh - 90px)', minHeight: '720px', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100%', flex: '1 1 0%', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <iframe
         ref={syntheticTerminalRef}
         className="synthetic-terminal-iframe"
         src={`/synthetic_trading_terminal.html?theme=${theme}`}
         title="Synthetic Trading Terminal"
-        style={{ width: '100%', height: '100%', minHeight: '720px', border: '0', display: 'block' }}
+        style={{ width: '100%', height: '100%', minHeight: 0, border: '0', display: 'block' }}
         onLoad={() => {
           syncSyntheticTerminalAccount()
         }}

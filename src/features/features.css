@@ -303,8 +303,8 @@
 
 .chat-fab {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 85px;
+  right: 20px;
   z-index: 900;
   display: flex;
   align-items: center;
@@ -325,7 +325,7 @@
 @media (min-width: 1024px) {
   .chat-fab {
     right: 340px;
-    bottom: 20px;
+    bottom: 85px;
   }
 }
 
