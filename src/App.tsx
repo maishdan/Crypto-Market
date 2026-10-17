@@ -4778,7 +4778,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className={`page-content ${(activeView === 'synthetic' || activeView === 'assets') ? 'page-content-synthetic' : ''}`}>
+        <div key={activeView} className={`page-content ${(activeView === 'synthetic' || activeView === 'assets') ? 'page-content-synthetic' : ''}`}>
           {(activeView === 'assets' || activeView === 'synthetic') && renderSyntheticContracts()}
           {activeView === 'tiers' && renderCryptoAllocationLevels()}
           {activeView === 'institutions' && renderInstitutionsView()}
