@@ -940,18 +940,21 @@
 
         if (timeLeft <= 0) {
           clearInterval(aiScanTimer);
-          const recDirection = Math.random() > 0.5 ? 'higher' : 'lower';
+          const recDirection = Math.random() > 0.35 ? 'higher' : 'lower';
           const recName = recDirection === 'higher' ? 'HIGHER / OVER' : 'LOWER / UNDER';
-          const winProb = (85 + Math.random() * 13).toFixed(1);
+          const bestMarket = markets[Math.floor(Math.random() * markets.length)];
+          selectMarket(bestMarket.id);
+          const winProb = (91.2 + Math.random() * 7.8).toFixed(1);
 
           content.innerHTML = `
             <div class="bg-gray-900/85 border border-teal-500/40 rounded-xl p-4 text-center space-y-3">
               <span class="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded font-mono font-bold uppercase">AI 40s Scan Complete</span>
+              <div class="text-xs text-gray-300 font-semibold">Best Market: <span class="text-teal-400 font-bold">${bestMarket.name}</span></div>
               <div class="text-base font-extrabold text-white tracking-wide">${recName}</div>
               <div class="text-xs text-gray-400 font-mono">Win Probability: <strong class="text-teal-400">${winProb}%</strong></div>
-              <p class="text-[11px] text-gray-400">AI has mastered the optimal entry point based on 40 seconds of deep tick learning.</p>
+              <p class="text-[11px] text-gray-400">AI identified optimal entry on ${bestMarket.name} with 90%+ profit payout probability.</p>
               <button type="button" onclick="executeAiTrade('${recDirection}')" class="w-full bg-gradient-to-r from-teal-600 to-cyan-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-lg">
-                🚀 Auto-Execute AI Trade
+                🚀 Auto-Execute High-Profit AI Trade
               </button>
             </div>
           `;

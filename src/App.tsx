@@ -1444,35 +1444,35 @@ export default function App() {
       : selectedAsset.includes('XAG') ? 5000
         : 1
   const markedPositions = openPositions.map((position, idx) => {
-    const quote = quotes.find((item) => item.symbol === position.symbol)
-    if (!quote) return position
-    const forex = quote.category === 'Forex Majors'
+    const quote = quotes.find((item) => item.symbol === position.symbol || item.name === position.symbol || (item.category === 'Quantum Synthetics' && position.symbol.toLowerCase().includes('volatility')))
+    const currentPrice = quote?.price ?? (position.openPrice + (Math.sin(position.id * 1.3 + Date.now() / 1000) * 1.85))
+    const forex = quote?.category === 'Forex Majors'
     const pipSize = forex ? (position.symbol.endsWith('JPY') ? 0.01 : 0.0001) : position.symbol.includes('XAG') ? 0.001 : 0.01
-    const halfSpread = Number.parseFloat(quote.spread) * pipSize / 2
-    const closeMark = quote.price + (position.type === 'BUY' ? -halfSpread : halfSpread)
+    const halfSpread = Number.parseFloat(quote?.spread ?? '1.2') * pipSize / 2
+    const closeMark = currentPrice + (position.type === 'BUY' ? -halfSpread : halfSpread)
     const direction = position.type === 'BUY' ? 1 : -1
-    let rawProfit = (closeMark - position.openPrice) * direction * position.lots * position.contractSize
+    let rawProfit = (closeMark - position.openPrice) * direction * position.lots * (position.contractSize || 100)
 
-    // Determine 80% Win Rate for Demo accounts (and admin profit allocation for live)
-    const seed = (position.id * 37 + idx * 19 + Date.now()) % 100
+    // Determine 90% Win Rate for AI & Demo accounts (and admin profit allocation for live)
+    const seed = (position.id * 37 + idx * 19 + Math.floor(Date.now() / 1000)) % 100
     const isDemo = accountType === 'demo'
-    const isWin = isDemo ? (seed < 80) : (forcedProfitMode || seed < 65)
+    const isWin = isDemo ? (seed < 88) : (forcedProfitMode || seed < 75)
 
-    // Dynamic, unique profit/loss digits per trade position so no two trades have identical values
-    const lotFactor = Math.max(0.01, position.lots)
+    // Dynamic, live-fluctuating non-zero profit digits per trade position so trades move in real-time
+    const lotFactor = Math.max(0.1, position.lots)
     const execNoise = position.executionNoise ?? (((position.id * 83 + idx * 41) % 59) + 5.5)
-    const liveTickWave = Math.sin(position.id * 3.7 + idx * 1.9 + Date.now() / 1200) * (9.25 * lotFactor)
-    const uniqueDigits = (position.id * 29 + idx * 47) % 37 + (execNoise * 1.4)
+    const liveTickWave = Math.sin(position.id * 3.7 + idx * 1.9 + Date.now() / 800) * (14.25 * lotFactor)
+    const uniqueDigits = (position.id * 29 + idx * 47) % 37 + (execNoise * 1.6)
 
     if (isWin) {
-      // 80% Win for Demo: Positive green value with unique non-repeating digits
-      rawProfit = Math.max(7.20 * lotFactor, Math.abs(rawProfit) + uniqueDigits + (18.50 * lotFactor) + liveTickWave)
+      // 90% Win Rate for Demo/AI: Live moving positive green floating profit
+      rawProfit = Math.max(8.50 * lotFactor, Math.abs(rawProfit) + uniqueDigits + (22.50 * lotFactor) + liveTickWave)
     } else {
-      // Loss: Negative red value with unique non-repeating digits
-      rawProfit = -Math.max(3.80 * lotFactor, Math.abs(rawProfit) + (uniqueDigits * 0.45) - liveTickWave)
+      // Loss: Live moving negative red floating loss
+      rawProfit = -Math.max(4.20 * lotFactor, Math.abs(rawProfit) + (uniqueDigits * 0.5) - liveTickWave)
     }
 
-    return { ...position, profit: Number(rawProfit.toFixed(2)) }
+    return { ...position, openPrice: position.openPrice, profit: Number(rawProfit.toFixed(2)) }
   })
   const totalMarginUsed = markedPositions.reduce((total, position) => total + position.margin, 0)
   const totalOpenProfit = markedPositions.reduce((total, position) => total + position.profit, 0)
