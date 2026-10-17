@@ -170,7 +170,6 @@ type LoginForm = { email: string; password: string }
 type SignupForm = { fullName: string; email: string; phone: string; country: string; password: string; confirmPassword: string }
 
 const navigation: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'synthetic', label: 'Synthetic', icon: TrendingUp },
   { id: 'positions', label: 'Open Trades', icon: Activity },
   { id: 'tiers', label: 'Investments', icon: CandlestickChart },
@@ -180,7 +179,6 @@ const navigation: { id: View; label: string; icon: typeof LayoutDashboard }[] = 
 ]
 
 const mobileNavItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'synthetic', label: 'Trade', icon: TrendingUp },
   { id: 'positions', label: 'Trades', icon: Activity },
   { id: 'tiers', label: 'Invest', icon: CandlestickChart },
@@ -837,10 +835,10 @@ export default function App() {
   // Account Mode State (LIVE vs DEMO) with persistent local storage
   const [accountType, setAccountType] = useState<AccountType>(() => {
     const saved = localStorage.getItem('exstrade_account_type') as AccountType | null
-    return (saved === 'demo' || saved === 'live') ? saved : 'none'
+    return (saved === 'live') ? 'live' : 'demo'
   })
   const [demoAccountName, setDemoAccountName] = useState(() => {
-    return localStorage.getItem('exstrade_demo_name') || ''
+    return localStorage.getItem('exstrade_demo_name') || 'Demo Account'
   })
   const [demoStartingBalance, setDemoStartingBalance] = useState(10000)
   const [demoBalance, setDemoBalance] = useState<number>(() => {
@@ -986,6 +984,7 @@ export default function App() {
   }, [closedTrades])
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
+  const [isFooterMinimized, setIsFooterMinimized] = useState(false)
   const positionIdRef = useRef(0)
 
   useEffect(() => {
@@ -1241,12 +1240,35 @@ export default function App() {
             }
           }
         }
+      } else if (message?.type === 'EXSTRADE_OPEN_TRADE') {
+        const t = message.trade
+        if (t) {
+          const numericId = typeof t.id === 'string' ? parseInt(t.id.replace(/\D/g, '') || '0', 10) || Date.now() : t.id || Date.now()
+          const newPos: OpenPosition = {
+            id: numericId,
+            symbol: t.symbol || 'Volatility 25 (1s) Index',
+            type: t.type || 'BUY',
+            lots: t.lots || 1,
+            openPrice: t.openPrice || 100,
+            profit: 0,
+            margin: t.margin || 10,
+            contractSize: 100,
+          }
+          setOpenPositions(curr => [newPos, ...curr])
+        }
       } else if (message?.type === 'EXSTRADE_RECORD_TRADE') {
         const t = message.trade
         if (t) {
           const pnl = Number(t.profitLoss || 0)
           const isWin = pnl >= 0
           const accType = t.accountType || (accountType === 'live' ? 'live' : 'demo')
+
+          if (t.id) {
+            const numericId = typeof t.id === 'string' ? parseInt(t.id.replace(/\D/g, '') || '0', 10) || 0 : t.id
+            setOpenPositions(curr => curr.filter(p => p.id !== numericId))
+          } else {
+            setOpenPositions(curr => curr.filter(p => p.symbol !== t.symbol))
+          }
 
           if (accType === 'live') {
             setLiveBalance(b => {
@@ -3601,318 +3623,10 @@ export default function App() {
         src={`/synthetic_trading_terminal.html?theme=${theme}`}
         title="Synthetic Trading Terminal"
         style={{ width: '100%', height: '100%', minHeight: '720px', border: '0', display: 'block' }}
-        onLoad={(event) => {
-        if (event.currentTarget.contentWindow) {
-          try {
-            event.currentTarget.contentWindow.postMessage({ type: 'EXSTRADE_THEME_CHANGE', theme }, '*')
-          } catch {
-            // ignore
-          }
-        }
-        const frameDocument = event.currentTarget.contentDocument
-        if (!frameDocument || frameDocument.getElementById('synthetic-compact-layout')) return
-        const responsiveStyles = frameDocument.createElement('style')
-        responsiveStyles.id = 'synthetic-compact-layout'
-        responsiveStyles.textContent = `
-          @media (max-width: 760px) {
-            body { height: auto !important; min-height: 100%; overflow: auto !important; justify-content: flex-start !important; }
-            body > header { height: auto !important; min-height: 56px; flex-wrap: wrap; justify-content: flex-start !important; gap: 8px; padding: 8px !important; }
-            body > header > div:first-child, body > header > div:last-child { width: 100%; flex-wrap: wrap; justify-content: space-between; gap: 8px !important; }
-            body > div.flex-1.flex.overflow-hidden { flex: none !important; flex-direction: column; overflow: visible !important; }
-            body > div.flex-1.flex.overflow-hidden > aside:first-child { display: flex !important; order: 2 !important; width: 100% !important; height: auto !important; flex-direction: row !important; justify-content: space-around !important; align-items: center !important; padding: 8px 12px !important; gap: 8px !important; background: rgba(18, 24, 38, 0.95) !important; border-top: 1px solid rgba(255, 255, 255, 0.08) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; overflow-x: auto !important; }
-            body > div.flex-1.flex.overflow-hidden > main { height: 48vh; min-height: 280px; flex: none !important; }
-            body > div.flex-1.flex.overflow-hidden > aside:last-child { width: 100% !important; height: auto; flex: none !important; }
-            body > footer { height: auto !important; min-height: 0 !important; flex: none !important; }
-          }
-          .synthetic-tool-active { color: #2dd4bf !important; background: rgba(20, 184, 166, 0.15) !important; border-color: rgba(45, 212, 191, 0.45) !important; }
-        `
-        frameDocument.head.append(responsiveStyles)
-        const accountBridge = frameDocument.createElement('script')
-        accountBridge.textContent = `
-          (() => {
-            const publishBalance = () => { if (typeof syncBalanceToParent === 'function') syncBalanceToParent() }
-            const headerActions = document.querySelector('body > header > div:last-child')
-            const accountPanel = headerActions?.firstElementChild
-            const accountBalanceDisplay = document.getElementById('accountBalance')
-            const accountLabel = accountPanel?.querySelector('span:first-child')
-            const depositButton = headerActions?.querySelector(':scope > button')
-            const resetButton = accountPanel?.querySelector('button')
-            const upButton = document.getElementById('btnPrimaryUp')
-            const downButton = document.getElementById('btnPrimaryDown')
-            if (!headerActions || !accountPanel || !accountBalanceDisplay || !depositButton) return
-
-            const accountSelect = document.createElement('select')
-            accountSelect.id = 'exstradeAccountSelector'
-            accountSelect.className = 'bg-gray-900 border border-gray-700/70 rounded-lg px-2.5 py-2 text-xs text-white font-bold'
-            accountSelect.setAttribute('aria-label', 'Select created account')
-            headerActions.insertBefore(accountSelect, accountPanel)
-            resetButton?.remove()
-
-            if (accountPanel) accountPanel.style.display = 'none'
-
-            const createButton = document.createElement('button')
-            createButton.type = 'button'
-            createButton.className = 'bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold'
-            createButton.textContent = 'Create Demo'
-            headerActions.insertBefore(createButton, depositButton)
-            depositButton.textContent = 'Add Funds'
-            depositButton.addEventListener('click', () => parent.postMessage({ type: 'EXSTRADE_OPEN_FUNDS' }, location.origin))
-            createButton.addEventListener('click', () => parent.postMessage({ type: 'EXSTRADE_CREATE_DEMO' }, location.origin))
-
-            let selectedAccountType = 'none'
-            accountSelect.addEventListener('change', () => parent.postMessage({ type: 'EXSTRADE_ACCOUNT_SELECT', accountType: accountSelect.value }, location.origin))
-            window.addEventListener('message', (event) => {
-              if (event.origin !== location.origin || event.source !== parent || event.data?.type !== 'EXSTRADE_ACCOUNT_SYNC') return
-              const state = event.data
-              const accounts = Array.isArray(state.accounts) ? state.accounts : []
-              accountSelect.replaceChildren()
-              if (!accounts.length) {
-                const emptyOption = document.createElement('option')
-                emptyOption.value = 'none'
-                emptyOption.textContent = 'No account created'
-                accountSelect.append(emptyOption)
-              } else {
-                accounts.forEach((account) => {
-                  const option = document.createElement('option')
-                  option.value = account.type
-                  option.textContent = (account.type === 'live' ? '🟢 ' : '🟡 ') + account.name + ' · $' + Number(account.balance).toFixed(2)
-                  accountSelect.append(option)
-                })
-              }
-              selectedAccountType = state.accountType || 'none'
-              accountSelect.value = selectedAccountType
-              accountBalance = Number(state.balance) || 0
-              accountBalanceDisplay.textContent = '$' + accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USD'
-              if (accountLabel) accountLabel.textContent = state.accountName || 'Real Account'
-              createButton.style.display = selectedAccountType === 'live' ? 'none' : 'inline-block'
-              const demoSelected = selectedAccountType === 'demo'
-              ;[upButton, downButton].forEach((button) => {
-                if (button) {
-                  button.disabled = !demoSelected
-                  button.title = demoSelected ? '' : 'Select a created demo account to place practice trades'
-                }
-              })
-            })
-            const originalExecuteTrade = window.executeTrade
-            window.executeTrade = (direction) => {
-              if (selectedAccountType !== 'demo') return
-              originalExecuteTrade(direction)
-              publishBalance()
-            }
-
-            const toolRail = document.querySelector('body > div.flex-1.flex.overflow-hidden > aside:first-child')
-            const toolButtons = toolRail ? Array.from(toolRail.querySelectorAll('button')) : []
-            const chartCanvas = document.getElementById('liveTickChart')
-            const chartContainer = chartCanvas?.parentElement
-            const overlay = document.createElement('canvas')
-            overlay.className = 'synthetic-drawing-overlay'
-            overlay.style.cssText = 'position:absolute;pointer-events:none;z-index:5;'
-            if (chartContainer && chartCanvas) chartContainer.append(overlay)
-
-            const getChart = () => window.tickChart
-            const getPrices = () => window.priceHistory || []
-            let crosshairEnabled = false
-            let drawingEnabled = false
-            let movingAverageEnabled = false
-            let zoomLevel = 1
-            let pointer = null
-            let drawingStart = null
-            const drawings = []
-
-            const pointFromEvent = (event) => {
-              const rect = chartCanvas.getBoundingClientRect()
-              return { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }
-            }
-            const renderOverlay = () => {
-              if (!chartCanvas || !chartContainer) return
-              const rect = chartCanvas.getBoundingClientRect()
-              const containerRect = chartContainer.getBoundingClientRect()
-              const ratio = window.devicePixelRatio || 1
-              overlay.style.left = (rect.left - containerRect.left) + 'px'
-              overlay.style.top = (rect.top - containerRect.top) + 'px'
-              overlay.style.width = rect.width + 'px'
-              overlay.style.height = rect.height + 'px'
-              const width = Math.max(1, Math.round(rect.width * ratio))
-              const height = Math.max(1, Math.round(rect.height * ratio))
-              if (overlay.width !== width) overlay.width = width
-              if (overlay.height !== height) overlay.height = height
-              const context = overlay.getContext('2d')
-              if (!context) return
-              context.setTransform(ratio, 0, 0, ratio, 0, 0)
-              context.clearRect(0, 0, rect.width, rect.height)
-              context.lineWidth = 1
-              context.strokeStyle = '#f59e0b'
-              drawings.forEach((line) => {
-                context.beginPath()
-                context.moveTo(line.start.x * rect.width, line.start.y * rect.height)
-                context.lineTo(line.end.x * rect.width, line.end.y * rect.height)
-                context.stroke()
-              })
-              if (drawingStart && pointer) {
-                context.beginPath()
-                context.setLineDash([5, 4])
-                context.moveTo(drawingStart.x * rect.width, drawingStart.y * rect.height)
-                context.lineTo(pointer.x * rect.width, pointer.y * rect.height)
-                context.stroke()
-                context.setLineDash([])
-              }
-              if (crosshairEnabled && pointer) {
-                context.strokeStyle = 'rgba(45, 212, 191, 0.8)'
-                context.setLineDash([3, 4])
-                context.beginPath()
-                context.moveTo(pointer.x * rect.width, 0)
-                context.lineTo(pointer.x * rect.width, rect.height)
-                context.moveTo(0, pointer.y * rect.height)
-                context.lineTo(rect.width, pointer.y * rect.height)
-                context.stroke()
-                context.setLineDash([])
-              }
-            }
-            const refreshZoom = () => {
-              const tickChart = getChart()
-              const priceHistory = getPrices()
-              if (!tickChart || zoomLevel === 1 || !priceHistory.length) {
-                if (tickChart?.options?.scales?.y) {
-                  delete tickChart.options.scales.y.min
-                  delete tickChart.options.scales.y.max
-                }
-                return
-              }
-              const values = priceHistory.slice(-35)
-              const spread = Math.max(...values) - Math.min(...values)
-              const range = Math.max(spread, Math.abs(values.at(-1) || 1) * 0.0005, 0.01) / zoomLevel
-              const center = values.at(-1) || 0
-              tickChart.options.scales.y.min = center - range / 2
-              tickChart.options.scales.y.max = center + range / 2
-            }
-
-            const chartInstance = getChart()
-            if (chartCanvas && chartContainer && chartInstance) {
-              const originalUpdate = chartInstance.update.bind(chartInstance)
-              chartInstance.update = (...args) => {
-                const tickChart = getChart()
-                const priceHistory = getPrices()
-                if (movingAverageEnabled && tickChart) {
-                  const average = tickChart.data.datasets.find((dataset) => dataset.label === '5-Tick Moving Average')
-                  if (average) average.data = priceHistory.map((_, index) => {
-                    const slice = priceHistory.slice(Math.max(0, index - 4), index + 1)
-                    return slice.reduce((total, value) => total + value, 0) / slice.length
-                  })
-                }
-                refreshZoom()
-                return originalUpdate(...args)
-              }
-              chartCanvas.addEventListener('pointermove', (event) => {
-                pointer = pointFromEvent(event)
-                if (crosshairEnabled || drawingEnabled) renderOverlay()
-              })
-              chartCanvas.addEventListener('pointerdown', (event) => {
-                if (!drawingEnabled) return
-                drawingStart = pointFromEvent(event)
-                pointer = drawingStart
-                chartCanvas.setPointerCapture(event.pointerId)
-                renderOverlay()
-              })
-              chartCanvas.addEventListener('pointerup', (event) => {
-                if (!drawingStart) return
-                const end = pointFromEvent(event)
-                drawings.push({ start: drawingStart, end })
-                drawingStart = null
-                pointer = end
-                renderOverlay()
-              })
-              chartCanvas.addEventListener('pointerleave', () => {
-                if (!drawingStart) pointer = null
-                renderOverlay()
-              })
-              new ResizeObserver(renderOverlay).observe(chartCanvas)
-            }
-
-            const setToolState = (index, active, title) => {
-              const button = toolButtons[index]
-              if (!button) return
-              button.classList.toggle('synthetic-tool-active', active)
-              button.setAttribute('aria-pressed', String(active))
-              button.title = title
-            }
-            toolButtons[0]?.addEventListener('click', () => {
-              crosshairEnabled = !crosshairEnabled
-              if (crosshairEnabled) drawingEnabled = false
-              setToolState(0, crosshairEnabled, crosshairEnabled ? 'Disable Crosshair Mode' : 'Crosshair Mode')
-              setToolState(1, drawingEnabled, drawingEnabled ? 'Disable Drawing Tools' : 'Drawing Tools')
-              if (chartCanvas) chartCanvas.style.cursor = crosshairEnabled || drawingEnabled ? 'crosshair' : 'default'
-              renderOverlay()
-            })
-            toolButtons[1]?.addEventListener('click', () => {
-              drawingEnabled = !drawingEnabled
-              if (drawingEnabled) crosshairEnabled = false
-              setToolState(1, drawingEnabled, drawingEnabled ? 'Drag on chart to draw a line' : 'Drawing Tools')
-              setToolState(0, crosshairEnabled, crosshairEnabled ? 'Disable Crosshair Mode' : 'Crosshair Mode')
-              if (chartCanvas) chartCanvas.style.cursor = drawingEnabled || crosshairEnabled ? 'crosshair' : 'default'
-              renderOverlay()
-            })
-            toolButtons[2]?.addEventListener('click', () => {
-              movingAverageEnabled = !movingAverageEnabled
-              const tickChart = getChart()
-              if (!tickChart) return
-              const datasetIndex = tickChart.data.datasets.findIndex((dataset) => dataset.label === '5-Tick Moving Average')
-              if (movingAverageEnabled && datasetIndex < 0) {
-                tickChart.data.datasets.push({ type: 'line', label: '5-Tick Moving Average', data: [], borderColor: '#f59e0b', borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.15 })
-              } else if (!movingAverageEnabled && datasetIndex >= 0) {
-                tickChart.data.datasets.splice(datasetIndex, 1)
-              }
-              setToolState(2, movingAverageEnabled, movingAverageEnabled ? 'Hide 5-Tick Moving Average' : 'Show 5-Tick Moving Average')
-              tickChart.update()
-            })
-            toolButtons[3]?.addEventListener('click', () => {
-              const tickChart = getChart()
-              if (!tickChart) return
-              const lineChart = tickChart.config.type === 'bar'
-              tickChart.config.type = lineChart ? 'line' : 'bar'
-              const priceDataset = tickChart.data.datasets[0]
-              priceDataset.fill = lineChart
-              priceDataset.backgroundColor = lineChart ? 'rgba(20, 184, 166, 0.25)' : 'rgba(0, 168, 150, 0.5)'
-              priceDataset.borderWidth = lineChart ? 2 : 1
-              setToolState(3, !lineChart, lineChart ? 'Switch to Line Chart' : 'Switch to Bar Chart')
-              tickChart.update()
-            })
-            window.zoomChart = (factor) => {
-              const tickChart = getChart()
-              zoomLevel = Math.max(0.2, Math.min(8, zoomLevel / factor))
-              refreshZoom()
-              if (tickChart) tickChart.update('none')
-            }
-            window.setInterval(publishBalance, 1000)
-            parent.postMessage({ type: 'EXSTRADE_TERMINAL_READY' }, location.origin)
-          })()
-        `
-        frameDocument.body.append(accountBridge)
-        const executionLog = (frameDocument.querySelector('body > footer') as HTMLElement | null)
-        const logHeader = (executionLog?.firstElementChild as HTMLElement | null)
-        const logTable = (executionLog?.lastElementChild as HTMLElement | null)
-        if (executionLog && logHeader && logTable && !logHeader.querySelector('.synthetic-log-toggle')) {
-          const toggle = frameDocument.createElement('button')
-          toggle.type = 'button'
-          toggle.className = 'glass-button w-8 h-6 rounded text-gray-400 hover:text-white'
-          toggle.innerHTML = '<i class="fa-solid fa-chevron-down"></i>'
-          toggle.setAttribute('aria-label', 'Hide position and execution log')
-          toggle.setAttribute('aria-expanded', 'true')
-          toggle.classList.add('synthetic-log-toggle')
-          toggle.addEventListener('click', () => {
-            const expanded = toggle.getAttribute('aria-expanded') === 'true'
-            toggle.setAttribute('aria-expanded', String(!expanded))
-            toggle.setAttribute('aria-label', expanded ? 'Show position and execution log' : 'Hide position and execution log')
-            toggle.innerHTML = `<i class="fa-solid fa-chevron-${expanded ? 'up' : 'down'}"></i>`
-            logTable.hidden = expanded
-            executionLog.style.setProperty('height', expanded ? '32px' : '128px', 'important')
-            executionLog.style.setProperty('min-height', expanded ? '32px' : '128px', 'important')
-          })
-          logHeader.append(toggle)
-        }
-        frameDocument.defaultView?.scrollTo(0, 0)
-        syncSyntheticTerminalAccount()
-      }}
-    />
+        onLoad={() => {
+          syncSyntheticTerminalAccount()
+        }}
+      />
     </div>
   )
 
@@ -4802,7 +4516,7 @@ export default function App() {
 
       {/* COMPACT/EXPANDABLE SIDEBAR */}
       <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
-        <a className="brand" href="#overview" onClick={(e) => { e.preventDefault(); changeView('overview') }}>
+        <a className="brand" href="#synthetic" onClick={(e) => { e.preventDefault(); changeView('synthetic') }}>
           <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 32, height: 32, borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
           <span className="brand-text">NEXSMARKETS</span>
         </a>
@@ -5064,8 +4778,8 @@ export default function App() {
           </div>
         </header>
 
-        <div className={`page-content ${(activeView === 'synthetic' || activeView === 'overview' || activeView === 'assets') ? 'page-content-synthetic' : ''}`}>
-          {(activeView === 'overview' || activeView === 'assets' || activeView === 'synthetic') && renderSyntheticContracts()}
+        <div className={`page-content ${(activeView === 'synthetic' || activeView === 'assets') ? 'page-content-synthetic' : ''}`}>
+          {(activeView === 'assets' || activeView === 'synthetic') && renderSyntheticContracts()}
           {activeView === 'tiers' && renderCryptoAllocationLevels()}
           {activeView === 'institutions' && renderInstitutionsView()}
           {activeView === 'positions' && renderOpenAndClosedTrades()}
@@ -5078,17 +4792,44 @@ export default function App() {
         </div>
 
         {/* GLOBAL NEXSMARKETS FOOTER */}
-        <footer className="global-platform-footer">
-          <div className="global-footer-inner">
-            <div className="global-footer-brand">
-              <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 26, height: 26, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-              <span className="global-footer-brand-title">NEXSMARKETS PRO TERMINAL</span>
+        <footer className="global-platform-footer" style={{ padding: isFooterMinimized ? '4px 12px' : '10px 18px', transition: 'all 0.2s ease' }}>
+          <div className="global-footer-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' }}>
+            <div className="global-footer-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 22, height: 22, borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
+              <span className="global-footer-brand-title" style={{ fontSize: '11px', fontWeight: 800 }}>NEXSMARKETS PRO TERMINAL</span>
             </div>
-            <div className="global-footer-copy">
-              © {new Date().getFullYear()} NEXSMARKETS Terminal. All rights reserved. Ultra-low latency synthetic &amp; multi-asset trading engine.
-            </div>
-            <div className="global-footer-status">
-              <span className="global-footer-dot"></span> System Operational • 1s Synthetic Ticks Active
+
+            {!isFooterMinimized && (
+              <div className="global-footer-copy" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                © {new Date().getFullYear()} NEXSMARKETS Terminal. All rights reserved. Ultra-low latency synthetic &amp; multi-asset trading engine.
+              </div>
+            )}
+
+            <div className="global-footer-status" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="global-footer-dot"></span> System Operational • 1s Synthetic Ticks Active
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setIsFooterMinimized(!isFooterMinimized)}
+                title={isFooterMinimized ? "Expand Footer" : "Minimize Footer"}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'var(--text-muted)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginLeft: '8px'
+                }}
+              >
+                <X size={12} /> {isFooterMinimized ? 'Expand' : 'Minimize'}
+              </button>
             </div>
           </div>
         </footer>

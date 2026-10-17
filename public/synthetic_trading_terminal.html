@@ -8,7 +8,33 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { background-color: #0b0e14; color: #f3f4f6; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #0b0e14;
+      color: #f3f4f6;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-1 { flex: 1 1 0%; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+    .hidden { display: none !important; }
+    .w-full { width: 100%; }
+    .h-full { height: 100%; }
+    .w-12 { width: 3rem; }
+    .w-80 { width: 20rem; }
+    .shrink-0 { flex-shrink: 0; }
+    .cursor-pointer { cursor: pointer; }
+    .rounded-xl { border-radius: 0.75rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .font-bold { font-weight: 700; }
     .glass-panel { background: #121721; border: 1px solid rgba(255, 255, 255, 0.07); }
     .glass-button { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.2s; }
     .glass-button:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.18); }
@@ -341,13 +367,12 @@
       </div>
 
       <!-- Live Chart Canvas Wrapper -->
-      <div id="chartCanvasWrapper" style="position: relative; width: 100%; height: 480px; min-height: 480px; flex: 1;">
+      <div id="chartCanvasWrapper" style="position: relative; width: 100%; height: 480px; min-height: 480px;">
         <button type="button" onclick="toggleChartFullscreen()" class="absolute top-3 right-3 z-20 bg-gray-900/80 border border-gray-700/80 text-teal-400 hover:text-white px-2.5 py-1 rounded-lg text-xs font-semibold shadow-lg backdrop-blur-md transition flex items-center gap-1.5">
           <i class="fa-solid fa-expand" id="fullscreenIcon"></i> <span id="fullscreenText">Fullscreen</span>
         </button>
-        <div style="position: absolute; inset: 0; padding: 12px; padding-bottom: 64px;">
-          <canvas id="liveTickChart" style="width: 100%; height: 100%; display: block;"></canvas>
-        </div>
+
+        <canvas id="liveTickChart" style="width: 100%; height: 480px; min-height: 480px; display: block; background: #0b0e14;"></canvas>
 
         <!-- RUNNING INDEXES BAR (Overlayed at Bottom over Chart, extending across like Deriv) -->
         <div class="absolute bottom-3 left-3 right-3 md:right-auto z-20 bg-[#0c1018]/92 border border-gray-800/90 backdrop-blur-md rounded-xl p-3 flex items-center justify-between md:justify-start gap-4 shadow-2xl overflow-x-auto">
@@ -452,7 +477,7 @@
   </div>
 
   <!-- FOOTER: Position & Execution Logs -->
-  <footer class="bg-[#0e131d] border-t border-gray-800/80 flex flex-col shrink-0 transition-all duration-200" style="height: 128px; min-height: 128px;">
+  <footer id="positionLogFooter" class="bg-[#0e131d] border-t border-gray-800/80 flex flex-col shrink-0 transition-all duration-300 relative z-30" style="height: 128px; min-height: 128px;">
     <!-- First child: Log Header -->
     <div class="h-8 px-4 border-b border-gray-800/60 flex items-center justify-between bg-[#131926] shrink-0">
       <div class="flex items-center gap-2 text-xs font-semibold text-gray-300">
@@ -460,10 +485,20 @@
         <span>Active Positions & Executed Contracts</span>
         <span id="openPositionsCount" class="bg-teal-500/20 text-teal-300 text-[10px] px-1.5 py-0.2 rounded font-mono">0 Open</span>
       </div>
+
+      <!-- Controls Right: Expand Upward/Downward & Close Icon -->
+      <div class="flex items-center gap-2">
+        <button type="button" id="btnFooterExpand" onclick="toggleFooterExpand()" title="Expand Upward / Compact" class="w-6 h-6 rounded glass-button flex items-center justify-center text-gray-400 hover:text-teal-400 text-xs transition">
+          <i class="fa-solid fa-up-right-and-down-left-from-center" id="iconFooterExpand"></i>
+        </button>
+        <button type="button" id="btnFooterClose" onclick="toggleFooterClose()" title="Minimize / Close Panel" class="w-6 h-6 rounded glass-button flex items-center justify-center text-gray-400 hover:text-rose-400 text-xs transition">
+          <i class="fa-solid fa-xmark" id="iconFooterClose"></i>
+        </button>
+      </div>
     </div>
 
     <!-- Last child: Log Table -->
-    <div class="flex-1 overflow-x-auto overflow-y-auto">
+    <div id="positionLogTableWrapper" class="flex-1 overflow-x-auto overflow-y-auto">
       <table class="w-full text-left text-xs font-mono">
         <thead class="bg-[#151c2a] text-gray-400 text-[11px] uppercase tracking-wider sticky top-0 border-b border-gray-800/60">
           <tr>
@@ -562,6 +597,8 @@
         const str = formatted.toFixed(2);
         digitHistory.push(parseInt(str.slice(-1), 10));
       }
+      window.priceHistory = priceHistory;
+      window.digitHistory = digitHistory;
     }
     seedMarketData(activeMarket);
 
@@ -693,29 +730,32 @@
     function renderNativeTickChart() {
       const canvas = document.getElementById('liveTickChart');
       if (!canvas) return;
+
       const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const parentWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
+      const parentHeight = canvas.parentElement ? canvas.parentElement.clientHeight : 0;
 
-      if (rect.width === 0 || rect.height === 0) return;
+      const renderWidth = rect.width > 0 ? rect.width : (parentWidth > 0 ? parentWidth : 800);
+      const renderHeight = rect.height > 0 ? rect.height : (parentHeight > 0 ? parentHeight : 420);
 
-      if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
-        canvas.width = Math.round(rect.width * dpr);
-        canvas.height = Math.round(rect.height * dpr);
+      if (canvas.width !== Math.round(renderWidth) || canvas.height !== Math.round(renderHeight)) {
+        canvas.width = Math.round(renderWidth);
+        canvas.height = Math.round(renderHeight);
       }
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       ctx.save();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, renderWidth, renderHeight);
 
       const padRight = 75;
       const padTop = 20;
       const padBottom = 25;
       const padLeft = 15;
-      const graphWidth = Math.max(10, rect.width - padLeft - padRight);
-      const graphHeight = Math.max(10, rect.height - padTop - padBottom);
+      const graphWidth = Math.max(10, renderWidth - padLeft - padRight);
+      const graphHeight = Math.max(10, renderHeight - padTop - padBottom);
 
       const prices = priceHistory.length > 0 ? priceHistory : [activeMarket.basePrice];
       const minP = Math.min(...prices) * 0.9998;
@@ -723,7 +763,7 @@
       const rangeP = Math.max(0.01, maxP - minP);
 
       // Draw Gridlines & Right Y-Axis Price Ticks
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
       ctx.lineWidth = 1;
       ctx.fillStyle = '#9ca3af';
       ctx.font = '10px monospace';
@@ -736,10 +776,10 @@
 
         ctx.beginPath();
         ctx.moveTo(padLeft, y);
-        ctx.lineTo(rect.width - padRight, y);
+        ctx.lineTo(renderWidth - padRight, y);
         ctx.stroke();
 
-        ctx.fillText(val.toFixed(2), rect.width - padRight + 8, y + 3);
+        ctx.fillText(val.toFixed(2), renderWidth - padRight + 8, y + 3);
       }
 
       if (prices.length >= 2) {
@@ -754,7 +794,7 @@
         const isUp = lastP >= prevP;
 
         // Gradient Fill Below Trend Line
-        const grad = ctx.createLinearGradient(0, padTop, 0, rect.height - padBottom);
+        const grad = ctx.createLinearGradient(0, padTop, 0, renderHeight - padBottom);
         grad.addColorStop(0, isUp ? 'rgba(45, 212, 191, 0.35)' : 'rgba(244, 63, 94, 0.35)');
         grad.addColorStop(1, 'rgba(15, 23, 42, 0.0)');
 
@@ -763,8 +803,8 @@
         for (let i = 1; i < pts.length; i++) {
           ctx.lineTo(pts[i].x, pts[i].y);
         }
-        ctx.lineTo(pts[pts.length - 1].x, rect.height - padBottom);
-        ctx.lineTo(pts[0].x, rect.height - padBottom);
+        ctx.lineTo(pts[pts.length - 1].x, renderHeight - padBottom);
+        ctx.lineTo(pts[0].x, renderHeight - padBottom);
         ctx.closePath();
         ctx.fillStyle = grad;
         ctx.fill();
@@ -779,13 +819,46 @@
         ctx.lineWidth = 2.2;
         ctx.stroke();
 
-        // Latest Tick Head Pulsing Circle
         const lastPt = pts[pts.length - 1];
+
+        // Horizontal Dashed Price Line from Latest Tick Head to Right Y-Axis
+        ctx.strokeStyle = isUp ? 'rgba(45, 212, 191, 0.7)' : 'rgba(244, 63, 94, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(lastPt.x, lastPt.y);
+        ctx.lineTo(renderWidth - padRight, lastPt.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Latest Tick Head Pulsing Circle
         ctx.beginPath();
         ctx.arc(lastPt.x, lastPt.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.strokeStyle = isUp ? '#2dd4bf' : '#f43f5e';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Live Price Badge Tag on Right Y-Axis
+        const tagWidth = 65;
+        const tagHeight = 20;
+        const tagX = renderWidth - padRight + 2;
+        const tagY = Math.max(padTop, Math.min(renderHeight - padBottom - tagHeight, lastPt.y - tagHeight / 2));
+
+        ctx.fillStyle = isUp ? '#0d9488' : '#be123c';
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(tagX, tagY, tagWidth, tagHeight, 4);
+        } else {
+          ctx.rect(tagX, tagY, tagWidth, tagHeight);
+        }
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(lastP.toFixed(2), tagX + tagWidth / 2, tagY + 14);
         ctx.lineWidth = 2.5;
         ctx.stroke();
       }
@@ -1059,6 +1132,53 @@
       }
     });
 
+    // Footer Expand / Collapse / Close Controls
+    let isFooterExpanded = false;
+    let isFooterClosed = false;
+
+    window.toggleFooterExpand = function() {
+      const footer = document.getElementById('positionLogFooter');
+      const tableWrapper = document.getElementById('positionLogTableWrapper');
+      const icon = document.getElementById('iconFooterExpand');
+      if (!footer || !tableWrapper) return;
+
+      if (isFooterClosed) {
+        isFooterClosed = false;
+        tableWrapper.style.display = 'block';
+      }
+
+      isFooterExpanded = !isFooterExpanded;
+      if (isFooterExpanded) {
+        footer.style.height = '360px';
+        footer.style.minHeight = '360px';
+        if (icon) icon.className = 'fa-solid fa-down-left-and-up-right-to-center';
+      } else {
+        footer.style.height = '128px';
+        footer.style.minHeight = '128px';
+        if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
+      }
+    };
+
+    window.toggleFooterClose = function() {
+      const footer = document.getElementById('positionLogFooter');
+      const tableWrapper = document.getElementById('positionLogTableWrapper');
+      const closeIcon = document.getElementById('iconFooterClose');
+      if (!footer || !tableWrapper) return;
+
+      isFooterClosed = !isFooterClosed;
+      if (isFooterClosed) {
+        tableWrapper.style.display = 'none';
+        footer.style.height = '32px';
+        footer.style.minHeight = '32px';
+        if (closeIcon) closeIcon.className = 'fa-solid fa-chevron-up';
+      } else {
+        tableWrapper.style.display = 'block';
+        footer.style.height = isFooterExpanded ? '360px' : '128px';
+        footer.style.minHeight = isFooterExpanded ? '360px' : '128px';
+        if (closeIcon) closeIcon.className = 'fa-solid fa-xmark';
+      }
+    };
+
     // Notify Parent Ready
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: 'EXSTRADE_TERMINAL_READY' }, location.origin);
@@ -1110,9 +1230,22 @@
 
       openTrades.push(trade);
       renderLogTable();
-    };
 
-    function renderLogTable() {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'EXSTRADE_OPEN_TRADE',
+          trade: {
+            id: trade.id,
+            symbol: trade.marketName || activeMarket.name || 'Volatility 25 (1s) Index',
+            type: trade.direction === 'higher' ? 'BUY' : 'SELL',
+            lots: Number((trade.stake / 10).toFixed(2)) || 1,
+            openPrice: trade.entryPrice,
+            margin: Number((trade.stake * 0.2).toFixed(2)) || 10,
+            accountType: selectedAccountType
+          }
+        }, location.origin);
+      }
+    };
     window.closeSyntheticTrade = function(id) {
       const trade = openTrades.find(t => t.id === id && t.status === 'OPEN');
       if (!trade) return;
@@ -1135,7 +1268,8 @@
       window.parent.postMessage({
         type: 'EXSTRADE_RECORD_TRADE',
         trade: {
-          symbol: trade.marketName || 'QUANTUM_VOL_10',
+          id: trade.id,
+          symbol: trade.marketName || 'Volatility 25 (1s) Index',
           direction: trade.direction === 'higher' ? 'BUY' : 'SELL',
           lots: Number((trade.stake / 10).toFixed(2)),
           openPrice: trade.entryPrice,
