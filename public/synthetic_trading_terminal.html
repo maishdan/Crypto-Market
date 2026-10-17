@@ -1233,11 +1233,14 @@
     function renderDigitPredictionGrid() {
       const container = document.getElementById('digitPredictionGrid');
       if (!container) return;
-      container.innerHTML = [0,1,2,3,4,5,6,7,8,9].map(d => `
-        <button type="button" onclick="selectPredictionDigit(${d})" class="py-2 rounded-lg font-bold text-xs font-mono transition border ${d === selectedPredictionDigit ? 'bg-teal-500/20 text-teal-300 border-teal-500/60 shadow-md shadow-teal-950/50' : 'bg-[#18202d] text-gray-400 border-gray-800 hover:text-white hover:bg-gray-800'}">
-          ${d}
-        </button>
-      `).join('');
+      container.innerHTML = [0,1,2,3,4,5,6,7,8,9].map(d => {
+        const isSelected = d === selectedPredictionDigit;
+        return `
+          <button type="button" onclick="selectPredictionDigit(${d})" style="padding: 8px 0; border-radius: 8px; font-weight: 700; font-size: 12px; font-family: monospace; transition: all 0.2s; border: 1px solid ${isSelected ? 'rgba(45, 212, 191, 0.6)' : '#1f2937'}; background: ${isSelected ? 'rgba(20, 184, 166, 0.25)' : '#18202d'}; color: ${isSelected ? '#2dd4bf' : '#9ca3af'}; box-shadow: ${isSelected ? '0 0 10px rgba(45, 212, 191, 0.4)' : 'none'};">
+            ${d}
+          </button>
+        `;
+      }).join('');
     }
 
     function selectPredictionDigit(d) {
@@ -1306,12 +1309,23 @@
       inputMode = mode;
       const stakeBtn = document.getElementById('stakeTabBtn');
       const payoutBtn = document.getElementById('payoutTabBtn');
+      if (!stakeBtn || !payoutBtn) return;
       if (mode === 'stake') {
-        stakeBtn.className = 'flex-1 py-1.5 font-semibold text-center rounded-md bg-teal-500/20 text-teal-300 border border-teal-500/40';
-        payoutBtn.className = 'flex-1 py-1.5 font-semibold text-center rounded-md text-gray-400 hover:text-white';
+        stakeBtn.style.setProperty('background-color', 'rgba(20, 184, 166, 0.25)', 'important');
+        stakeBtn.style.setProperty('color', '#2dd4bf', 'important');
+        stakeBtn.style.setProperty('border-color', 'rgba(45, 212, 191, 0.5)', 'important');
+
+        payoutBtn.style.setProperty('background-color', '#18202d', 'important');
+        payoutBtn.style.setProperty('color', '#9ca3af', 'important');
+        payoutBtn.style.setProperty('border-color', '#1f2937', 'important');
       } else {
-        payoutBtn.className = 'flex-1 py-1.5 font-semibold text-center rounded-md bg-teal-500/20 text-teal-300 border border-teal-500/40';
-        stakeBtn.className = 'flex-1 py-1.5 font-semibold text-center rounded-md text-gray-400 hover:text-white';
+        payoutBtn.style.setProperty('background-color', 'rgba(20, 184, 166, 0.25)', 'important');
+        payoutBtn.style.setProperty('color', '#2dd4bf', 'important');
+        payoutBtn.style.setProperty('border-color', 'rgba(45, 212, 191, 0.5)', 'important');
+
+        stakeBtn.style.setProperty('background-color', '#18202d', 'important');
+        stakeBtn.style.setProperty('color', '#9ca3af', 'important');
+        stakeBtn.style.setProperty('border-color', '#1f2937', 'important');
       }
       updatePayoutDisplays();
     }
