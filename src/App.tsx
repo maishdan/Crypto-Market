@@ -4803,60 +4803,40 @@ export default function App() {
           {activeView === 'history' && renderHistoryPage()}
         </div>
 
-        {/* EXPANDABLE ACTIVE POSITIONS DOCK BAR */}
-        <div style={{ background: '#0e131d', borderTop: '1px solid rgba(255,255,255,0.08)', transition: 'all 0.3s ease', position: 'relative', zIndex: 40 }}>
-          <div style={{ padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#131926' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Activity size={14} color="var(--mint-teal)" />
-              <strong style={{ fontSize: '11px', color: '#fff', letterSpacing: '0.3px' }}>Active Open Positions & Running Orders</strong>
-              <span style={{ fontSize: '10px', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--mint-teal)', padding: '1px 7px', borderRadius: '4px', fontFamily: 'var(--font-code)', fontWeight: 700 }}>
-                {openPositions.length} Open
-              </span>
-              {openPositions.length > 0 && (
-                <span style={{ fontSize: '11px', fontWeight: 800, color: totalOpenProfit >= 0 ? '#00e676' : '#ff1744', fontFamily: 'var(--font-code)' }}>
-                  Floating P&L: {totalOpenProfit >= 0 ? `+$${totalOpenProfit.toFixed(2)}` : `-$${Math.abs(totalOpenProfit).toFixed(2)}`}
-                </span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsPositionsDockExpanded(!isPositionsDockExpanded)}
-              style={{
-                background: 'rgba(20, 184, 166, 0.15)',
-                border: '1px solid rgba(20, 184, 166, 0.3)',
-                color: 'var(--mint-teal)',
-                borderRadius: '6px',
-                padding: '3px 10px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              {isPositionsDockExpanded ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-              {isPositionsDockExpanded ? 'Minimize Table' : 'Expand Positions'}
-            </button>
-          </div>
-
+        {/* ONE SINGLE UNIFIED PLATFORM FOOTER & POSITIONS BAR */}
+        <footer className="global-platform-footer" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0e131d', padding: '6px 16px', transition: 'all 0.3s ease', position: 'relative', zIndex: 50 }}>
           {isPositionsDockExpanded && (
-            <div style={{ padding: '12px 16px', maxHeight: '280px', overflowY: 'auto' }}>
+            <div style={{ padding: '12px 0 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px', maxHeight: '280px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Activity size={15} color="var(--mint-teal)" /> Running Active Positions & Executed Contracts ({openPositions.length})
+                </h4>
+                {openPositions.length > 0 && (
+                  <button
+                    type="button"
+                    style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: 'rgba(255,23,68,0.18)', border: '1px solid rgba(255,23,68,0.4)', color: '#ff1744', borderRadius: '6px', cursor: 'pointer' }}
+                    onClick={handleCloseAllPositions}
+                  >
+                    Close All ({openPositions.length})
+                  </button>
+                )}
+              </div>
+
               {openPositions.length === 0 ? (
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
-                  No active running orders. Open a trade position from the Trading Terminal.
+                  No active running positions. Place a trade from the Trading Terminal.
                 </div>
               ) : (
                 <table className="pro-data-table" style={{ fontSize: '11px' }}>
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Symbol</th>
+                      <th>Trade ID</th>
+                      <th>Asset Symbol</th>
                       <th>Type</th>
                       <th>Lots</th>
                       <th>Entry Price</th>
                       <th>Current Price</th>
+                      <th>Margin</th>
                       <th>Floating P&L</th>
                       <th>Action</th>
                     </tr>
@@ -4873,6 +4853,7 @@ export default function App() {
                           <td>{pos.lots}</td>
                           <td>${pos.openPrice.toFixed(2)}</td>
                           <td className="pnl-live-ticker">${currentPrice.toFixed(2)}</td>
+                          <td>${pos.margin.toFixed(2)}</td>
                           <td><strong style={{ color: pos.profit >= 0 ? '#00e676' : '#ff1744' }}>{pos.profit >= 0 ? `+$${pos.profit.toFixed(2)}` : `-$${Math.abs(pos.profit).toFixed(2)}`}</strong></td>
                           <td>
                             <button
@@ -4891,48 +4872,52 @@ export default function App() {
               )}
             </div>
           )}
-        </div>
 
-        {/* GLOBAL NEXSMARKETS FOOTER */}
-        <footer className="global-platform-footer" style={{ padding: isFooterMinimized ? '4px 12px' : '10px 18px', transition: 'all 0.2s ease' }}>
-          <div className="global-footer-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' }}>
-            <div className="global-footer-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' }}>
+            {/* Brand Left */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 22, height: 22, borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
-              <span className="global-footer-brand-title" style={{ fontSize: '11px', fontWeight: 800 }}>NEXSMARKETS PRO TERMINAL</span>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff' }}>NEXSMARKETS PRO TERMINAL</span>
             </div>
 
-            {!isFooterMinimized && (
-              <div className="global-footer-copy" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                © {new Date().getFullYear()} NEXSMARKETS Terminal. All rights reserved. Ultra-low latency synthetic &amp; multi-asset trading engine.
-              </div>
-            )}
-
-            <div className="global-footer-status" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Middle Status & Active Positions Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="global-footer-dot"></span> System Operational • 1s Synthetic Ticks Active
+                <span className="global-footer-dot"></span> System Operational • 1s Synthetic Ticks
               </span>
-
-              <button
-                type="button"
-                onClick={() => setIsFooterMinimized(!isFooterMinimized)}
-                title={isFooterMinimized ? "Expand Footer" : "Minimize Footer"}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'var(--text-muted)',
-                  borderRadius: '4px',
-                  padding: '2px 6px',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  marginLeft: '8px'
-                }}
-              >
-                <X size={12} /> {isFooterMinimized ? 'Expand' : 'Minimize'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => setIsPositionsDockExpanded(!isPositionsDockExpanded)}>
+                <span style={{ fontSize: '10px', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--mint-teal)', padding: '1px 7px', borderRadius: '4px', fontFamily: 'var(--font-code)', fontWeight: 700 }}>
+                  {openPositions.length} Open Trades
+                </span>
+                {openPositions.length > 0 && (
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: totalOpenProfit >= 0 ? '#00e676' : '#ff1744', fontFamily: 'var(--font-code)' }}>
+                    P&L: {totalOpenProfit >= 0 ? `+$${totalOpenProfit.toFixed(2)}` : `-$${Math.abs(totalOpenProfit).toFixed(2)}`}
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Single Toggle Button Right */}
+            <button
+              type="button"
+              onClick={() => setIsPositionsDockExpanded(!isPositionsDockExpanded)}
+              style={{
+                background: 'rgba(20, 184, 166, 0.15)',
+                border: '1px solid rgba(20, 184, 166, 0.3)',
+                color: 'var(--mint-teal)',
+                borderRadius: '6px',
+                padding: '4px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              {isPositionsDockExpanded ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+              {isPositionsDockExpanded ? 'Minimize' : 'Expand Positions'}
+            </button>
           </div>
         </footer>
       </main>

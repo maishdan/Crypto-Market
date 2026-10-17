@@ -762,48 +762,6 @@
     </aside>
   </div>
 
-  <!-- FOOTER: Position & Execution Logs -->
-  <footer id="positionLogFooter" class="bg-[#0e131d] border-t border-gray-800/80 flex flex-col shrink-0 transition-all duration-300 relative z-30" style="height: 128px; min-height: 128px;">
-    <!-- First child: Log Header -->
-    <div class="h-8 px-4 border-b border-gray-800/60 flex items-center justify-between bg-[#131926] shrink-0">
-      <div class="flex items-center gap-2 text-xs font-semibold text-gray-300">
-        <i class="fa-solid fa-list-check text-teal-400"></i>
-        <span>Active Positions & Executed Contracts</span>
-        <span id="openPositionsCount" class="bg-teal-500/20 text-teal-300 text-[10px] px-1.5 py-0.2 rounded font-mono">0 Open</span>
-      </div>
-
-      <!-- Controls Right: Expand Upward/Downward & Close Icon -->
-      <div class="flex items-center gap-2">
-        <button type="button" id="btnFooterExpand" onclick="toggleFooterExpand()" title="Expand Upward / Compact" class="w-6 h-6 rounded glass-button flex items-center justify-center text-gray-400 hover:text-teal-400 text-xs transition">
-          <i class="fa-solid fa-up-right-and-down-left-from-center" id="iconFooterExpand"></i>
-        </button>
-        <button type="button" id="btnFooterClose" onclick="toggleFooterClose()" title="Minimize / Close Panel" class="w-6 h-6 rounded glass-button flex items-center justify-center text-gray-400 hover:text-rose-400 text-xs transition">
-          <i class="fa-solid fa-xmark" id="iconFooterClose"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Last child: Log Table -->
-    <div id="positionLogTableWrapper" class="flex-1 overflow-x-auto overflow-y-auto">
-      <table class="w-full text-left text-xs font-mono">
-        <thead class="bg-[#151c2a] text-gray-400 text-[11px] uppercase tracking-wider sticky top-0 border-b border-gray-800/60">
-          <tr>
-            <th class="py-1.5 px-3">Contract ID</th>
-            <th class="py-1.5 px-3">Type & Direction</th>
-            <th class="py-1.5 px-3">Entry Price</th>
-            <th class="py-1.5 px-3">Current Price</th>
-            <th class="py-1.5 px-3">Stake</th>
-            <th class="py-1.5 px-3">P/L</th>
-            <th class="py-1.5 px-3">Status</th>
-          </tr>
-        </thead>
-        <tbody id="logTableBody" class="divide-y divide-gray-800/40 text-gray-300">
-          <!-- Position logs -->
-        </tbody>
-      </table>
-    </div>
-  </footer>
-
   <!-- AI SCANNER MODAL -->
   <div id="aiScannerModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-[#121722] border border-teal-500/40 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
