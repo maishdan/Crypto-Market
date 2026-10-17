@@ -586,7 +586,7 @@ export default function FundsHub({
           </div>
 
           <button className="th-proceed-btn th-proceed-full th-proceed-red" onClick={confirmWithdraw} style={{ marginTop: 16 }}>
-            <ArrowUpFromLine size={15} /> SUBMIT WITHDRAWAL
+            <ArrowUpFromLine size={15} /> WITHDRAW
           </button>
         </div>
       )}
