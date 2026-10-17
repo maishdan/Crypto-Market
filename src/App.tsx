@@ -958,18 +958,43 @@ export default function App() {
     setWalletBalances(w => ({ ...w, main: liveBalance }))
   }, [liveBalance])
 
-  // Open & Closed Trades State for Real Trades management with persistent localStorage
+  // Unique Device & Session Scope Key Generator
+  const getDeviceStorageKey = useCallback((baseKey: string) => {
+    try {
+      let devId = localStorage.getItem('nexsmarkets_device_id')
+      if (!devId) {
+        devId = 'dev_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36)
+        localStorage.setItem('nexsmarkets_device_id', devId)
+      }
+      return `${baseKey}_${devId}`
+    } catch {
+      return baseKey
+    }
+  }, [])
+
+  // Open & Closed Trades State for Real Trades management with device-isolated storage
   const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
     try {
-      const saved = localStorage.getItem('nexsmarkets_open_positions') || localStorage.getItem('exstrade_open_positions')
+      let devId = localStorage.getItem('nexsmarkets_device_id')
+      if (!devId) {
+        devId = 'dev_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36)
+        localStorage.setItem('nexsmarkets_device_id', devId)
+      }
+      const saved = localStorage.getItem(`nexsmarkets_open_positions_${devId}`)
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
+
   const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
     try {
-      const saved = localStorage.getItem('nexsmarkets_closed_trades') || localStorage.getItem('exstrade_closed_trades')
+      let devId = localStorage.getItem('nexsmarkets_device_id')
+      if (!devId) {
+        devId = 'dev_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36)
+        localStorage.setItem('nexsmarkets_device_id', devId)
+      }
+      const saved = localStorage.getItem(`nexsmarkets_closed_trades_${devId}`)
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
@@ -977,12 +1002,14 @@ export default function App() {
   })
 
   useEffect(() => {
-    localStorage.setItem('nexsmarkets_open_positions', JSON.stringify(openPositions))
-  }, [openPositions])
+    const key = getDeviceStorageKey('nexsmarkets_open_positions')
+    localStorage.setItem(key, JSON.stringify(openPositions))
+  }, [getDeviceStorageKey, openPositions])
 
   useEffect(() => {
-    localStorage.setItem('nexsmarkets_closed_trades', JSON.stringify(closedTrades))
-  }, [closedTrades])
+    const key = getDeviceStorageKey('nexsmarkets_closed_trades')
+    localStorage.setItem(key, JSON.stringify(closedTrades))
+  }, [closedTrades, getDeviceStorageKey])
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
   const [isFooterMinimized, setIsFooterMinimized] = useState(false)
