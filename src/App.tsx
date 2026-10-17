@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   ChevronDown,
+  ChevronUp,
   LayoutDashboard,
   Menu,
   Search,
@@ -985,6 +986,7 @@ export default function App() {
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
   const [isFooterMinimized, setIsFooterMinimized] = useState(false)
+  const [isPositionsDockExpanded, setIsPositionsDockExpanded] = useState(false)
   const positionIdRef = useRef(0)
 
   useEffect(() => {
@@ -4799,6 +4801,96 @@ export default function App() {
           {activeView === 'profile' && renderDedicatedProfilePage()}
           {activeView === 'help' && renderHelpCenter()}
           {activeView === 'history' && renderHistoryPage()}
+        </div>
+
+        {/* EXPANDABLE ACTIVE POSITIONS DOCK BAR */}
+        <div style={{ background: '#0e131d', borderTop: '1px solid rgba(255,255,255,0.08)', transition: 'all 0.3s ease', position: 'relative', zIndex: 40 }}>
+          <div style={{ padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#131926' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Activity size={14} color="var(--mint-teal)" />
+              <strong style={{ fontSize: '11px', color: '#fff', letterSpacing: '0.3px' }}>Active Open Positions & Running Orders</strong>
+              <span style={{ fontSize: '10px', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--mint-teal)', padding: '1px 7px', borderRadius: '4px', fontFamily: 'var(--font-code)', fontWeight: 700 }}>
+                {openPositions.length} Open
+              </span>
+              {openPositions.length > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: 800, color: totalOpenProfit >= 0 ? '#00e676' : '#ff1744', fontFamily: 'var(--font-code)' }}>
+                  Floating P&L: {totalOpenProfit >= 0 ? `+$${totalOpenProfit.toFixed(2)}` : `-$${Math.abs(totalOpenProfit).toFixed(2)}`}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsPositionsDockExpanded(!isPositionsDockExpanded)}
+              style={{
+                background: 'rgba(20, 184, 166, 0.15)',
+                border: '1px solid rgba(20, 184, 166, 0.3)',
+                color: 'var(--mint-teal)',
+                borderRadius: '6px',
+                padding: '3px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              {isPositionsDockExpanded ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+              {isPositionsDockExpanded ? 'Minimize Table' : 'Expand Positions'}
+            </button>
+          </div>
+
+          {isPositionsDockExpanded && (
+            <div style={{ padding: '12px 16px', maxHeight: '280px', overflowY: 'auto' }}>
+              {openPositions.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
+                  No active running orders. Open a trade position from the Trading Terminal.
+                </div>
+              ) : (
+                <table className="pro-data-table" style={{ fontSize: '11px' }}>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Symbol</th>
+                      <th>Type</th>
+                      <th>Lots</th>
+                      <th>Entry Price</th>
+                      <th>Current Price</th>
+                      <th>Floating P&L</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {markedPositions.map((pos) => {
+                      const quote = quotes.find((q) => q.symbol === pos.symbol)
+                      const currentPrice = quote?.price ?? pos.openPrice
+                      return (
+                        <tr key={pos.id}>
+                          <td><code>#{pos.id}</code></td>
+                          <td><strong>{pos.symbol}</strong></td>
+                          <td><span className={pos.type === 'BUY' ? 'ticker-up' : 'ticker-down'}>{pos.type}</span></td>
+                          <td>{pos.lots}</td>
+                          <td>${pos.openPrice.toFixed(2)}</td>
+                          <td className="pnl-live-ticker">${currentPrice.toFixed(2)}</td>
+                          <td><strong style={{ color: pos.profit >= 0 ? '#00e676' : '#ff1744' }}>{pos.profit >= 0 ? `+$${pos.profit.toFixed(2)}` : `-$${Math.abs(pos.profit).toFixed(2)}`}</strong></td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => handleClosePosition(pos.id)}
+                              style={{ padding: '3px 8px', fontSize: '10px', background: 'rgba(255,23,68,0.2)', border: '1px solid rgba(255,23,68,0.4)', color: '#ff1744', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                              Close
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
 
         {/* GLOBAL NEXSMARKETS FOOTER */}
