@@ -215,7 +215,7 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.5s cubic-bezier(0.12, 1, 0.22, 1);
+  transition: all 0.8s cubic-bezier(0.08, 1, 0.18, 1);
   white-space: nowrap;
 }
 
@@ -581,15 +581,15 @@ body.theme-light .unified-account-dropdown option {
 @keyframes viewPopIn {
   0% {
     opacity: 0;
-    transform: translateY(28px) scale(0.98);
-    filter: blur(8px);
+    transform: translateY(32px) scale(0.975);
+    filter: blur(10px);
   }
-  35% {
-    opacity: 0.5;
-    filter: blur(3px);
+  30% {
+    opacity: 0.45;
+    filter: blur(4px);
   }
-  70% {
-    opacity: 0.88;
+  65% {
+    opacity: 0.85;
     filter: blur(1px);
   }
   100% {
@@ -606,7 +606,17 @@ body.theme-light .unified-account-dropdown option {
   flex-direction: column;
   gap: 18px;
   background: #0a0d12 !important;
-  animation: viewPopIn 1.35s cubic-bezier(0.12, 1, 0.22, 1) forwards;
+  animation: viewPopIn 2.2s cubic-bezier(0.08, 1, 0.18, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+.profile-monitor-card,
+.funds-modal,
+.tradingview-main-card,
+.pro-data-table,
+.card-glass {
+  animation: viewPopIn 2.2s cubic-bezier(0.08, 1, 0.18, 1) forwards;
+  transition: all 0.8s cubic-bezier(0.08, 1, 0.18, 1);
   will-change: transform, opacity, filter;
 }
 
