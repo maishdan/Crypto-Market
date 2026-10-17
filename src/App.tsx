@@ -1190,8 +1190,9 @@ export default function App() {
       accountName: currentName,
       balance: activeBalance,
       accounts,
+      openPositions,
     }, window.location.origin)
-  }, [accountType, activeBalance, demoAccountName, demoBalance, liveBalance, user?.fullName])
+  }, [accountType, activeBalance, demoAccountName, demoBalance, liveBalance, openPositions, user?.fullName])
 
   useEffect(() => {
     syncSyntheticTerminalAccount()
@@ -1868,6 +1869,14 @@ export default function App() {
     const pipSize = forex ? (pos.symbol.endsWith('JPY') ? 0.01 : 0.0001) : pos.symbol.includes('XAG') ? 0.001 : 0.01
     const halfSpread = Number.parseFloat(quote?.spread ?? '0') * pipSize / 2
     const closePrice = (quote?.price ?? pos.openPrice) + (pos.type === 'BUY' ? -halfSpread : halfSpread)
+
+    if (syntheticTerminalRef.current?.contentWindow) {
+      try {
+        syntheticTerminalRef.current.contentWindow.postMessage({ type: 'EXSTRADE_CLOSE_POSITION_EXTERNAL', posId }, '*')
+      } catch {
+        // silent
+      }
+    }
 
     setOpenPositions(curr => curr.filter(p => p.id !== posId))
     setClosedTrades(curr => [

@@ -1115,6 +1115,15 @@
         applyTheme(event.data.theme);
         return;
       }
+      if (event.data?.type === 'EXSTRADE_CLOSE_POSITION_EXTERNAL') {
+        const posId = event.data.posId;
+        const trade = openTrades.find(t => t.id === 'SYN-' + posId || t.id === posId || t.id === String(posId));
+        if (trade && trade.status === 'OPEN') {
+          trade.status = 'WON';
+          renderLogTable();
+        }
+        return;
+      }
       if (event.origin !== location.origin || event.data?.type !== 'EXSTRADE_ACCOUNT_SYNC') return;
       const data = event.data;
       if (Number.isFinite(data.balance)) {
@@ -1129,6 +1138,30 @@
       }
       if (data.accountType) {
         selectedAccountType = data.accountType;
+      }
+      if (Array.isArray(data.openPositions)) {
+        data.openPositions.forEach(p => {
+          const tradeId = 'SYN-' + p.id;
+          if (!openTrades.some(t => t.id === tradeId || t.id === p.id || t.id === String(p.id))) {
+            openTrades.push({
+              id: tradeId,
+              marketName: p.symbol || 'Volatility 25 (1s) Index',
+              tradeType: 'Over/Under',
+              direction: p.type === 'BUY' ? 'higher' : 'lower',
+              entryPrice: p.openPrice || 594570.20,
+              stake: (p.lots || 1) * 10,
+              mult: 1.427,
+              status: 'OPEN'
+            });
+          }
+        });
+        const activeIds = new Set(data.openPositions.map(p => 'SYN-' + p.id));
+        openTrades.forEach(t => {
+          if (t.status === 'OPEN' && !activeIds.has(t.id)) {
+            t.status = 'WON';
+          }
+        });
+        renderLogTable();
       }
     });
 
