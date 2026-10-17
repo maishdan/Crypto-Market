@@ -1,6 +1,6 @@
-# Exstrade
+# NexsMarkets
 
-Exstrade is a React, TypeScript, and Vite application. Supabase Auth provides email/password signup, login, session persistence, password reset, and sign-out. Supabase stores private profile photos and display names with per-user row-level security, and streams profile/account events through Realtime. No custody, investment account, market feed, order execution, or identity verification provider is connected.
+NexsMarkets is a React, TypeScript, and Vite application. Supabase Auth provides email/password signup, login, session persistence, password reset, and sign-out. Supabase stores private profile photos and display names with per-user row-level security, and streams profile/account events through Realtime. No custody, investment account, market feed, order execution, or identity verification provider is connected.
 
 ## Run locally
 

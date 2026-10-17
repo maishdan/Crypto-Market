@@ -27,7 +27,7 @@ export type ChatSession = {
 }
 
 // Shared in-memory store simulating a real-time socket (single-tab)
-const SESSION_STORE_KEY = '__exstrade_chat_sessions__'
+const SESSION_STORE_KEY = '__nexsmarkets_chat_sessions__'
 
 function getSessions(): ChatSession[] {
   try { return JSON.parse(sessionStorage.getItem(SESSION_STORE_KEY) ?? '[]') }
@@ -229,7 +229,7 @@ export default function LiveChat(props: UserChatProps) {
             <div className="chat-agent-info">
               <div className="chat-agent-avatar">S</div>
               <div>
-                <strong>Exstrade Support</strong>
+                <strong>NexsMarkets Support</strong>
                 <span className={`chat-agent-status ${agentOnline ? 'chat-online' : ''}`}>
                   <Circle size={7} fill={agentOnline ? '#00e676' : '#9aa7b8'} />
                   {agentOnline ? 'Online' : 'Offline'}
@@ -252,7 +252,7 @@ export default function LiveChat(props: UserChatProps) {
               <div className="chat-messages">
                 {/* Welcome */}
                 <div className="chat-system-msg">
-                  Welcome to Exstrade Live Support. Describe your issue and an agent will respond shortly.
+                  Welcome to NexsMarkets Live Support. Describe your issue and an agent will respond shortly.
                 </div>
 
                 {(session?.messages ?? []).map(msg => (

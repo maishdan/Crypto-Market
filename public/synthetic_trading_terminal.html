@@ -284,7 +284,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span id="headerSymbolTitle" class="font-bold text-sm text-white tracking-wide">Volatility 25 (1s) Index</span>
-            <span class="text-[10px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded font-mono font-medium border border-teal-500/30">EXSTRADE SYNTHETICS</span>
+            <span class="text-[10px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded font-mono font-medium border border-teal-500/30">NEXSMARKETS SYNTHETICS</span>
           </div>
           <div class="flex items-center gap-2 text-xs text-gray-400">
             <span>1s Ticks</span>
@@ -1078,7 +1078,7 @@
     function syncBalanceToParent() {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
-          type: 'EXSTRADE_BALANCE_UPDATE',
+          type: 'NEXSMARKETS_BALANCE_UPDATE',
           accountType: selectedAccountType,
           balance: accountBalance
         }, location.origin);
@@ -1087,7 +1087,7 @@
 
     function openFundsModal() {
       if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: 'EXSTRADE_OPEN_FUNDS' }, location.origin);
+        window.parent.postMessage({ type: 'NEXSMARKETS_OPEN_FUNDS' }, location.origin);
       } else {
         alert('Deposit Funds requested.');
       }
@@ -1111,11 +1111,11 @@
     }
 
     window.addEventListener('message', (event) => {
-      if (event.data?.type === 'EXSTRADE_THEME_CHANGE') {
+      if (event.data?.type === 'NEXSMARKETS_THEME_CHANGE' || event.data?.type === 'EXSTRADE_THEME_CHANGE') {
         applyTheme(event.data.theme);
         return;
       }
-      if (event.data?.type === 'EXSTRADE_CLOSE_POSITION_EXTERNAL') {
+      if (event.data?.type === 'NEXSMARKETS_CLOSE_POSITION_EXTERNAL' || event.data?.type === 'EXSTRADE_CLOSE_POSITION_EXTERNAL') {
         const posId = event.data.posId;
         const trade = openTrades.find(t => t.id === 'SYN-' + posId || t.id === posId || t.id === String(posId));
         if (trade && trade.status === 'OPEN') {
@@ -1124,7 +1124,8 @@
         }
         return;
       }
-      if (event.origin !== location.origin || event.data?.type !== 'EXSTRADE_ACCOUNT_SYNC') return;
+      if (event.origin !== location.origin) return;
+      if (event.data?.type !== 'NEXSMARKETS_ACCOUNT_SYNC' && event.data?.type !== 'EXSTRADE_ACCOUNT_SYNC') return;
       const data = event.data;
       if (Number.isFinite(data.balance)) {
         accountBalance = Number(data.balance);
@@ -1214,7 +1215,7 @@
 
     // Notify Parent Ready
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'EXSTRADE_TERMINAL_READY' }, location.origin);
+      window.parent.postMessage({ type: 'NEXSMARKETS_TERMINAL_READY' }, location.origin);
     }
 
     // Execute Trade Logic (Demo = 75% win, Live = loss unless admin override)
@@ -1266,7 +1267,7 @@
 
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
-          type: 'EXSTRADE_OPEN_TRADE',
+          type: 'NEXSMARKETS_OPEN_TRADE',
           trade: {
             id: trade.id,
             symbol: trade.marketName || activeMarket.name || 'Volatility 25 (1s) Index',
@@ -1299,7 +1300,7 @@
       syncBalanceToParent();
 
       window.parent.postMessage({
-        type: 'EXSTRADE_RECORD_TRADE',
+        type: 'NEXSMARKETS_RECORD_TRADE',
         trade: {
           id: trade.id,
           symbol: trade.marketName || 'Volatility 25 (1s) Index',
@@ -1442,7 +1443,7 @@
 
     // Admin Profit Allocation Sync Listener
     window.addEventListener('message', (e) => {
-      if (e.data && e.data.type === 'EXSTRADE_PROFIT_ALLOCATION') {
+      if (e.data && (e.data.type === 'NEXSMARKETS_PROFIT_ALLOCATION' || e.data.type === 'EXSTRADE_PROFIT_ALLOCATION')) {
         window.adminOverrideWinner = e.data.mode === 'PROFIT';
       }
     });

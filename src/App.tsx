@@ -834,47 +834,47 @@ export default function App() {
 
   // Account Mode State (LIVE vs DEMO) with persistent local storage
   const [accountType, setAccountType] = useState<AccountType>(() => {
-    const saved = localStorage.getItem('exstrade_account_type') as AccountType | null
+    const saved = (localStorage.getItem('nexsmarkets_account_type') || localStorage.getItem('exstrade_account_type')) as AccountType | null
     return (saved === 'live') ? 'live' : 'demo'
   })
   const [demoAccountName, setDemoAccountName] = useState(() => {
-    return localStorage.getItem('exstrade_demo_name') || 'Demo Account'
+    return localStorage.getItem('nexsmarkets_demo_name') || localStorage.getItem('exstrade_demo_name') || 'Demo Account'
   })
   const [demoStartingBalance, setDemoStartingBalance] = useState(10000)
   const [demoBalance, setDemoBalance] = useState<number>(() => {
-    const saved = localStorage.getItem('exstrade_demo_balance')
+    const saved = localStorage.getItem('nexsmarkets_demo_balance') || localStorage.getItem('exstrade_demo_balance')
     if (saved !== null && Number.isFinite(Number(saved))) return Number(saved)
     return 10000
   })
   const [liveBalance, setLiveBalance] = useState<number>(() => {
-    const saved = localStorage.getItem('exstrade_live_balance')
+    const saved = localStorage.getItem('nexsmarkets_live_balance') || localStorage.getItem('exstrade_live_balance')
     if (saved !== null && Number.isFinite(Number(saved))) return Number(saved)
     return 0.00
   })
   const [liveAccountCreated, setLiveAccountCreated] = useState<boolean>(() => {
-    return localStorage.getItem('exstrade_live_account_created') === 'true'
+    return (localStorage.getItem('nexsmarkets_live_account_created') || localStorage.getItem('exstrade_live_account_created')) === 'true'
   })
   const syntheticTerminalRef = useRef<HTMLIFrameElement>(null)
 
   // Persist balances, account mode, open positions, and closed trades across view navigation and sessions
   useEffect(() => {
-    localStorage.setItem('exstrade_demo_balance', String(demoBalance))
+    localStorage.setItem('nexsmarkets_demo_balance', String(demoBalance))
   }, [demoBalance])
 
   useEffect(() => {
-    localStorage.setItem('exstrade_live_balance', String(liveBalance))
+    localStorage.setItem('nexsmarkets_live_balance', String(liveBalance))
   }, [liveBalance])
 
   useEffect(() => {
-    localStorage.setItem('exstrade_account_type', accountType)
+    localStorage.setItem('nexsmarkets_account_type', accountType)
   }, [accountType])
 
   useEffect(() => {
-    if (demoAccountName) localStorage.setItem('exstrade_demo_name', demoAccountName)
+    if (demoAccountName) localStorage.setItem('nexsmarkets_demo_name', demoAccountName)
   }, [demoAccountName])
 
   useEffect(() => {
-    localStorage.setItem('exstrade_live_account_created', String(liveAccountCreated))
+    localStorage.setItem('nexsmarkets_live_account_created', String(liveAccountCreated))
   }, [liveAccountCreated])
 
   // Multi-wallet balances
@@ -960,7 +960,7 @@ export default function App() {
   // Open & Closed Trades State for Real Trades management with persistent localStorage
   const [openPositions, setOpenPositions] = useState<OpenPosition[]>(() => {
     try {
-      const saved = localStorage.getItem('exstrade_open_positions')
+      const saved = localStorage.getItem('nexsmarkets_open_positions') || localStorage.getItem('exstrade_open_positions')
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
@@ -968,7 +968,7 @@ export default function App() {
   })
   const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>(() => {
     try {
-      const saved = localStorage.getItem('exstrade_closed_trades')
+      const saved = localStorage.getItem('nexsmarkets_closed_trades') || localStorage.getItem('exstrade_closed_trades')
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
@@ -976,11 +976,11 @@ export default function App() {
   })
 
   useEffect(() => {
-    localStorage.setItem('exstrade_open_positions', JSON.stringify(openPositions))
+    localStorage.setItem('nexsmarkets_open_positions', JSON.stringify(openPositions))
   }, [openPositions])
 
   useEffect(() => {
-    localStorage.setItem('exstrade_closed_trades', JSON.stringify(closedTrades))
+    localStorage.setItem('nexsmarkets_closed_trades', JSON.stringify(closedTrades))
   }, [closedTrades])
   const [appTransactions, setAppTransactions] = useState<Array<{ id: string; type: string; amount: number; bonus_amount?: number; gateway_network?: string; reference_code?: string; status: string; created_at: string }>>([])
   const [forcedProfitMode, setForcedProfitMode] = useState(false)
@@ -1161,7 +1161,7 @@ export default function App() {
           setForcedProfitMode(isProf)
           localStorage.setItem('admin_override_winner', isProf ? 'true' : 'false')
           if (syntheticTerminalRef.current?.contentWindow) {
-            syntheticTerminalRef.current.contentWindow.postMessage({ type: 'EXSTRADE_PROFIT_ALLOCATION', mode: isProf ? 'PROFIT' : 'LOSS' }, '*')
+            syntheticTerminalRef.current.contentWindow.postMessage({ type: 'NEXSMARKETS_PROFIT_ALLOCATION', mode: isProf ? 'PROFIT' : 'LOSS' }, '*')
           }
         })
         .subscribe()
@@ -1185,7 +1185,7 @@ export default function App() {
     const currentName = accountType === 'demo' ? (demoAccountName || 'Demo Account') : realAccName
 
     frameWindow.postMessage({
-      type: 'EXSTRADE_ACCOUNT_SYNC',
+      type: 'NEXSMARKETS_ACCOUNT_SYNC',
       accountType,
       accountName: currentName,
       balance: activeBalance,
@@ -1202,7 +1202,7 @@ export default function App() {
   useEffect(() => {
     if (syntheticTerminalRef.current && syntheticTerminalRef.current.contentWindow) {
       try {
-        syntheticTerminalRef.current.contentWindow.postMessage({ type: 'EXSTRADE_THEME_CHANGE', theme }, '*')
+        syntheticTerminalRef.current.contentWindow.postMessage({ type: 'NEXSMARKETS_THEME_CHANGE', theme }, '*')
       } catch {
         // ignore
       }
@@ -1213,20 +1213,21 @@ export default function App() {
     const handleSyntheticMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== syntheticTerminalRef.current?.contentWindow) return
       const message = event.data
-      if (message?.type === 'EXSTRADE_TERMINAL_READY') {
+      const mType = message?.type || ''
+      if (mType === 'NEXSMARKETS_TERMINAL_READY' || mType === 'EXSTRADE_TERMINAL_READY') {
         syncSyntheticTerminalAccount()
         if (syntheticTerminalRef.current && syntheticTerminalRef.current.contentWindow) {
-          syntheticTerminalRef.current.contentWindow.postMessage({ type: 'EXSTRADE_THEME_CHANGE', theme }, '*')
+          syntheticTerminalRef.current.contentWindow.postMessage({ type: 'NEXSMARKETS_THEME_CHANGE', theme }, '*')
         }
-      } else if (message?.type === 'EXSTRADE_ACCOUNT_SELECT') {
+      } else if (mType === 'NEXSMARKETS_ACCOUNT_SELECT' || mType === 'EXSTRADE_ACCOUNT_SELECT') {
         if (message.accountType === 'demo' && demoAccountName) setAccountType('demo')
         if (message.accountType === 'live' && liveAccountCreated) setAccountType('live')
-      } else if (message?.type === 'EXSTRADE_CREATE_DEMO') {
+      } else if (mType === 'NEXSMARKETS_CREATE_DEMO' || mType === 'EXSTRADE_CREATE_DEMO') {
         setModal('create_demo')
-      } else if (message?.type === 'EXSTRADE_OPEN_FUNDS') {
+      } else if (mType === 'NEXSMARKETS_OPEN_FUNDS' || mType === 'EXSTRADE_OPEN_FUNDS') {
         setPreviousView(activeView)
         setActiveView('funds')
-      } else if (message?.type === 'EXSTRADE_BALANCE_UPDATE') {
+      } else if (mType === 'NEXSMARKETS_BALANCE_UPDATE' || mType === 'EXSTRADE_BALANCE_UPDATE') {
         const nextBalance = Number(message.balance)
         if (Number.isFinite(nextBalance) && nextBalance >= 0) {
           if (message.accountType === 'demo') {
@@ -1241,7 +1242,7 @@ export default function App() {
             }
           }
         }
-      } else if (message?.type === 'EXSTRADE_OPEN_TRADE') {
+      } else if (mType === 'NEXSMARKETS_OPEN_TRADE' || mType === 'EXSTRADE_OPEN_TRADE') {
         const t = message.trade
         if (t) {
           const numericId = typeof t.id === 'string' ? parseInt(t.id.replace(/\D/g, '') || '0', 10) || Date.now() : t.id || Date.now()
@@ -1257,7 +1258,7 @@ export default function App() {
           }
           setOpenPositions(curr => [newPos, ...curr])
         }
-      } else if (message?.type === 'EXSTRADE_RECORD_TRADE') {
+      } else if (mType === 'NEXSMARKETS_RECORD_TRADE' || mType === 'EXSTRADE_RECORD_TRADE') {
         const t = message.trade
         if (t) {
           const pnl = Number(t.profitLoss || 0)
@@ -1872,7 +1873,7 @@ export default function App() {
 
     if (syntheticTerminalRef.current?.contentWindow) {
       try {
-        syntheticTerminalRef.current.contentWindow.postMessage({ type: 'EXSTRADE_CLOSE_POSITION_EXTERNAL', posId }, '*')
+        syntheticTerminalRef.current.contentWindow.postMessage({ type: 'NEXSMARKETS_CLOSE_POSITION_EXTERNAL', posId }, '*')
       } catch {
         // silent
       }

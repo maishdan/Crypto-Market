@@ -158,7 +158,7 @@ const initialAdmins: AdminUser[] = [
   {
     id: 'adm-kyc-1',
     name: 'Amara Osei',
-    email: 'kyc@exstrade.com',
+    email: 'kyc@nexsmarkets.com',
     role: 'kyc_admin',
     permissions: kycAdminPermissions,
     isProtected: false,
@@ -170,7 +170,7 @@ const initialAdmins: AdminUser[] = [
   {
     id: 'adm-fin-1',
     name: 'Priya Sharma',
-    email: 'finance@exstrade.com',
+    email: 'finance@nexsmarkets.com',
     role: 'finance_admin',
     permissions: financeAdminPermissions,
     isProtected: false,
@@ -486,7 +486,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     localStorage.setItem('admin_override_winner', nextMode === 'PROFIT' ? 'true' : 'false')
 
     // Broadcast to active windows/iframes
-    window.postMessage({ type: 'EXSTRADE_PROFIT_ALLOCATION', userId: user.id, mode: nextMode }, '*')
+    window.postMessage({ type: 'NEXSMARKETS_PROFIT_ALLOCATION', userId: user.id, mode: nextMode }, '*')
 
     // Write to Supabase user_trade_allocations table
     try {
@@ -665,7 +665,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
           id: r.id,
           adminId: r.admin_id,
           adminName: r.admin_name || 'Admin',
-          adminEmail: 'admin@exstrade.com',
+          adminEmail: 'admin@nexsmarkets.com',
           action: r.action,
           targetId: r.target_id,
           targetType: r.target_type,
@@ -741,7 +741,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
               id: r.id,
               userId: r.user_id,
               userName: userProf?.name || `User #${r.user_id.substring(0, 8)}`,
-              userEmail: userProf?.email || `user_${r.user_id.substring(0, 6)}@exstrade.com`,
+              userEmail: userProf?.email || `user_${r.user_id.substring(0, 6)}@nexsmarkets.com`,
               documentType: (r.document_type || userProf?.docType || 'National ID') as any,
               documentUrl: fileUrl,
               storagePath: r.storage_path,
@@ -790,7 +790,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
           id: r.id,
           userId: r.user_id,
           userName: `User #${r.user_id.substring(0, 8)}`,
-          userEmail: `user_${r.user_id.substring(0, 6)}@exstrade.com`,
+          userEmail: `user_${r.user_id.substring(0, 6)}@nexsmarkets.com`,
           type: r.type,
           amount: Number(r.total_amount || r.amount),
           network: r.gateway_network || 'MPESA',
@@ -2261,7 +2261,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
                         <input className="sa-input" placeholder="Jane Doe" value={newAdmin.name} onChange={e => setNewAdmin(p => ({ ...p, name: e.target.value }))} />
                       </label>
                       <label className="sa-label">Email Address
-                        <input className="sa-input" type="email" placeholder="jane@exstrade.com" value={newAdmin.email} onChange={e => setNewAdmin(p => ({ ...p, email: e.target.value }))} />
+                        <input className="sa-input" type="email" placeholder="jane@nexsmarkets.com" value={newAdmin.email} onChange={e => setNewAdmin(p => ({ ...p, email: e.target.value }))} />
                       </label>
                       <label className="sa-label" style={{ gridColumn: '1/-1' }}>Role & Permissions
                         <select className="sa-input" value={newAdmin.role} onChange={e => setNewAdmin(p => ({ ...p, role: e.target.value as AdminRole }))}>
