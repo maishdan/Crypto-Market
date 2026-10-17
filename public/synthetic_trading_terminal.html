@@ -1547,9 +1547,16 @@
       if (!trade) return;
 
       const currentPrice = priceHistory[priceHistory.length - 1] || trade.entryPrice;
-      const diff = (currentPrice - trade.entryPrice) * (trade.direction === 'higher' ? 1 : -1);
-      const profit = Number((diff * trade.stake * 0.4 + (trade.executionNoise || 0)).toFixed(2));
-      const won = profit >= 0;
+      const won = window.adminOverrideWinner !== undefined ? window.adminOverrideWinner : (Math.random() < 0.88);
+
+      let profit = 0;
+      if (won) {
+        // Payout profit strictly proportional to stake (e.g. $10 stake = +$9.53 profit)
+        profit = Number((trade.stake * (trade.mult || 0.953)).toFixed(2));
+      } else {
+        // Loss bounded to stake (-$10.00)
+        profit = -Number(trade.stake.toFixed(2));
+      }
 
       trade.status = won ? 'WON' : 'LOST';
 

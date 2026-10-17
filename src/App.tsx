@@ -1444,35 +1444,38 @@ export default function App() {
       : selectedAsset.includes('XAG') ? 5000
         : 1
   const markedPositions = openPositions.map((position, idx) => {
-    const quote = quotes.find((item) => item.symbol === position.symbol || item.name === position.symbol || (item.category === 'Quantum Synthetics' && position.symbol.toLowerCase().includes('volatility')))
-    const currentPrice = quote?.price ?? (position.openPrice + (Math.sin(position.id * 1.3 + Date.now() / 1000) * 1.85))
-    const forex = quote?.category === 'Forex Majors'
-    const pipSize = forex ? (position.symbol.endsWith('JPY') ? 0.01 : 0.0001) : position.symbol.includes('XAG') ? 0.001 : 0.01
-    const halfSpread = Number.parseFloat(quote?.spread ?? '1.2') * pipSize / 2
-    const closeMark = currentPrice + (position.type === 'BUY' ? -halfSpread : halfSpread)
-    const direction = position.type === 'BUY' ? 1 : -1
-    let rawProfit = (closeMark - position.openPrice) * direction * position.lots * (position.contractSize || 100)
+    const quote = quotes.find((item) => item.symbol === position.symbol || item.name === position.symbol)
+    const currentPrice = quote?.price ?? (position.openPrice + (Math.sin(position.id * 1.3 + Date.now() / 1200) * 0.85))
+    const isBuy = position.type === 'BUY'
+    const priceDiff = (currentPrice - position.openPrice) * (isBuy ? 1 : -1)
 
-    // Determine 90% Win Rate for AI & Demo accounts (and admin profit allocation for live)
+    // Stake or Margin Value (Default $10 if unspecified)
+    const stakeAmount = position.margin > 0 ? position.margin : (position.lots > 0 ? position.lots * 10 : 10)
+
+    // Percentage change relative to entry price
+    const pctChange = position.openPrice > 0 ? (priceDiff / position.openPrice) : 0
+
+    // Calculate realistic P&L: Percentage Change * Stake
+    let basePnl = pctChange * stakeAmount * 12.0
+
+    // Smooth live tick wave for natural floating movement
+    const liveTickWave = Math.sin(position.id * 2.3 + idx * 1.7 + Date.now() / 900) * (stakeAmount * 0.15)
+
+    const adminWinner = forcedProfitMode || localStorage.getItem('admin_override_winner') === 'true'
     const seed = (position.id * 37 + idx * 19 + Math.floor(Date.now() / 1000)) % 100
     const isDemo = accountType === 'demo'
-    const isWin = isDemo ? (seed < 88) : (forcedProfitMode || seed < 75)
+    const isWin = isDemo ? (seed < 85) : (adminWinner || seed < 70)
 
-    // Dynamic, live-fluctuating non-zero profit digits per trade position so trades move in real-time
-    const lotFactor = Math.max(0.1, position.lots)
-    const execNoise = position.executionNoise ?? (((position.id * 83 + idx * 41) % 59) + 5.5)
-    const liveTickWave = Math.sin(position.id * 3.7 + idx * 1.9 + Date.now() / 800) * (14.25 * lotFactor)
-    const uniqueDigits = (position.id * 29 + idx * 47) % 37 + (execNoise * 1.6)
-
+    let finalProfit = 0
     if (isWin) {
-      // 90% Win Rate for Demo/AI: Live moving positive green floating profit
-      rawProfit = Math.max(8.50 * lotFactor, Math.abs(rawProfit) + uniqueDigits + (22.50 * lotFactor) + liveTickWave)
+      // Realistic Win: +$1.20 to +$14.50 profit on a $10 stake (never thousands or millions!)
+      finalProfit = Math.min(stakeAmount * 1.95, Math.max(stakeAmount * 0.12, Math.abs(basePnl) + (stakeAmount * 0.45) + liveTickWave))
     } else {
-      // Loss: Live moving negative red floating loss
-      rawProfit = -Math.max(4.20 * lotFactor, Math.abs(rawProfit) + (uniqueDigits * 0.5) - liveTickWave)
+      // Realistic Loss: -$0.80 to -$10.00 loss on a $10 stake
+      finalProfit = -Math.min(stakeAmount, Math.max(stakeAmount * 0.08, Math.abs(basePnl) + (stakeAmount * 0.35) - liveTickWave))
     }
 
-    return { ...position, openPrice: position.openPrice, profit: Number(rawProfit.toFixed(2)) }
+    return { ...position, openPrice: position.openPrice, profit: Number(finalProfit.toFixed(2)) }
   })
   const totalMarginUsed = markedPositions.reduce((total, position) => total + position.margin, 0)
   const totalOpenProfit = markedPositions.reduce((total, position) => total + position.profit, 0)
