@@ -860,6 +860,24 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
         }
       }
 
+      // Also include all user profiles awaiting KYC verification from public.profiles
+      Object.entries(profileMap).forEach(([uid, prof]) => {
+        if (!kycCases.some(c => c.userId === uid)) {
+          kycCases.push({
+            id: 'kyc-' + uid,
+            userId: uid,
+            userName: prof.name,
+            userEmail: prof.email,
+            documentType: (prof.docType || 'National ID') as any,
+            mimeType: 'image/jpeg',
+            fileUrl: '/generic-profile-portrait.svg',
+            submittedAt: prof.createdAt || new Date().toISOString(),
+            status: prof.status === 'verified' || prof.status === 'approved' ? 'approved' : prof.status === 'rejected' ? 'rejected' : 'pending',
+            rejectionReason: '',
+          })
+        }
+      })
+
       if (kycCases.length > 0) {
         setKycQueue(kycCases)
       } else {
@@ -1222,18 +1240,20 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
   const approveKyc = async (kyc: KycCase) => {
     if (!canAccess('canApproveKyc')) { notify('No permission.', 'err'); return }
     setKycQueue(curr => curr.map(k => k.id === kyc.id ? { ...k, status: 'approved' } : k))
-    setUsers(curr => curr.map(u => u.id === kyc.userId ? { ...u, kycStatus: 'verified' } : u))
+    setUsers(curr => curr.map(u => u.id === kyc.userId ? { ...u, kycStatus: 'verified', status: 'active', accountStatus: 'approved' } : u))
 
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/profile_documents?id=eq.${kyc.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ status: 'verified', reviewed_at: new Date().toISOString() }),
-      })
+      if (!kyc.id.startsWith('kyc-')) {
+        await fetch(`${SUPABASE_URL}/rest/v1/profile_documents?id=eq.${kyc.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ status: 'verified', reviewed_at: new Date().toISOString() }),
+        })
+      }
       await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${kyc.userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ kyc_status: 'approved', account_status: 'approved', updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ kyc_status: 'verified', account_status: 'approved', updated_at: new Date().toISOString() }),
       })
     } catch {
       // silent
@@ -1251,11 +1271,13 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     setUsers(curr => curr.map(u => u.id === kyc.userId ? { ...u, kycStatus: 'rejected' } : u))
 
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/profile_documents?id=eq.${kyc.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ status: 'rejected', admin_notes: reason, reviewed_at: new Date().toISOString() }),
-      })
+      if (!kyc.id.startsWith('kyc-')) {
+        await fetch(`${SUPABASE_URL}/rest/v1/profile_documents?id=eq.${kyc.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ status: 'rejected', admin_notes: reason, reviewed_at: new Date().toISOString() }),
+        })
+      }
       await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${kyc.userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },

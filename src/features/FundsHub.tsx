@@ -105,11 +105,6 @@ export default function FundsHub({
   const [bankAccountName, setBankAccountName] = useState('')
   const [bankSwift, setBankSwift] = useState('')
 
-  // Transfer
-  const [tFrom, setTFrom] = useState<keyof WalletBalances>('main')
-  const [tTo, setTTo] = useState<keyof WalletBalances>('synthetic')
-  const [tAmt, setTAmt] = useState('')
-
   // M-Pesa
   const [mpPhone, setMpPhone] = useState('')
   const [mpKes, setMpKes] = useState('')
@@ -221,16 +216,6 @@ export default function FundsHub({
     setWAmt(''); setWAddr(''); setWMpPhone(''); setBankAccountNum(''); setBankAccountName(''); setBankSwift('')
   }
 
-  const confirmTransfer = () => {
-    const amt = parseFloat(tAmt)
-    if (!amt || amt <= 0) { showNotice('Enter a valid amount.'); return }
-    if (tFrom === tTo) { showNotice('Select two different wallets.'); return }
-    if (wallets[tFrom] < amt) { showNotice('Insufficient balance.'); return }
-    onTransfer(tFrom, tTo, amt)
-    showNotice(`✅ Transferred $${fmt(amt)} → ${WALLET_META[tTo].label}`)
-    setTAmt('')
-  }
-
   return (
     <div className="th-shell">
       {/* ── TITLE ───────────────────────────────────────────────────────── */}
@@ -263,9 +248,6 @@ export default function FundsHub({
         </button>
         <button className={`th-tab ${tab === 'withdraw' ? 'th-tab-active' : ''}`} onClick={() => setTab('withdraw')}>
           <ArrowUpFromLine size={14} /> Withdraw
-        </button>
-        <button className={`th-tab ${tab === 'transfer' ? 'th-tab-active' : ''}`} onClick={() => setTab('transfer')}>
-          <ArrowLeftRight size={14} /> Internal Transfer
         </button>
       </div>
 
@@ -605,49 +587,6 @@ export default function FundsHub({
 
           <button className="th-proceed-btn th-proceed-full th-proceed-red" onClick={confirmWithdraw} style={{ marginTop: 16 }}>
             <ArrowUpFromLine size={15} /> SUBMIT WITHDRAWAL
-          </button>
-        </div>
-      )}
-
-      {/* ════════════════ TRANSFER ══════════════════════════════════════════ */}
-      {tab === 'transfer' && (
-        <div className="th-simple-body">
-          <div className="th-transfer-row">
-            <label className="th-field-label" style={{flex:1}}>
-              From
-              <select className="th-input" value={tFrom} onChange={e => setTFrom(e.target.value as keyof WalletBalances)}>
-                {(Object.keys(wallets) as (keyof WalletBalances)[]).map(k => (
-                  <option key={k} value={k}>{WALLET_META[k].label} — ${fmt(wallets[k])}</option>
-                ))}
-              </select>
-            </label>
-            <button className="th-swap-btn" onClick={() => { const t=tFrom; setTFrom(tTo); setTTo(t) }}>
-              <RefreshCw size={15}/>
-            </button>
-            <label className="th-field-label" style={{flex:1}}>
-              To
-              <select className="th-input" value={tTo} onChange={e => setTTo(e.target.value as keyof WalletBalances)}>
-                {(Object.keys(wallets) as (keyof WalletBalances)[]).map(k => (
-                  <option key={k} value={k}>{WALLET_META[k].label} — ${fmt(wallets[k])}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="th-quick-row">
-            {[10,50,100,500].map(q => (
-              <button key={q} className={`th-quick ${tAmt===String(q)?'th-quick-on':''}`} onClick={() => setTAmt(String(q))}>
-                ${q}
-              </button>
-            ))}
-            <button className="th-quick" onClick={() => setTAmt(wallets[tFrom].toFixed(2))}>MAX</button>
-          </div>
-          <div className="th-input-wrap">
-            <span className="th-input-pre">$</span>
-            <input className="th-input" type="number" min="1" placeholder="0.00" value={tAmt} onChange={e => setTAmt(e.target.value)}/>
-          </div>
-          <div className="th-hint" style={{marginTop:4,color:'var(--ft-cyan)'}}><ArrowLeftRight size={11}/> Zero fees · Instant settlement.</div>
-          <button className="th-proceed-btn th-proceed-full th-proceed-trf" onClick={confirmTransfer} style={{marginTop:16}}>
-            <ArrowLeftRight size={15}/> EXECUTE TRANSFER
           </button>
         </div>
       )}
