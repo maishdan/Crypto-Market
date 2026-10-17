@@ -469,6 +469,111 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
   const [newPassword, setNewPassword] = useState('')
   const [resetPwDone, setResetPwDone] = useState(false)
 
+  // Custom Withdrawal / Transaction Entry Modal State
+  const [customWithdrawalModal, setCustomWithdrawalModal] = useState(false)
+  const [withdrawalDraft, setWithdrawalDraft] = useState({
+    userId: '',
+    type: 'withdrawal' as 'withdrawal' | 'deposit',
+    amount: '250',
+    network: 'MPESA',
+    status: 'approved' as 'approved' | 'pending' | 'rejected',
+    timestamp: new Date().toISOString().substring(0, 16),
+    refCode: 'WD' + Math.floor(100000 + Math.random() * 900000)
+  })
+
+  const handleCreateCustomWithdrawal = async () => {
+    const targetUser = users.find(u => u.id === withdrawalDraft.userId || u.email === withdrawalDraft.userId)
+    const targetUserId = targetUser?.id || withdrawalDraft.userId || users[0]?.id
+    if (!targetUserId) {
+      showToast('Please select a target user account.', 'err')
+      return
+    }
+
+    const numericAmount = parseFloat(withdrawalDraft.amount || '0')
+    if (numericAmount <= 0) {
+      showToast('Please enter a valid amount greater than $0.', 'err')
+      return
+    }
+
+    const isoDate = withdrawalDraft.timestamp ? new Date(withdrawalDraft.timestamp).toISOString() : new Date().toISOString()
+    const refCode = withdrawalDraft.refCode || 'WD' + Math.floor(100000 + Math.random() * 900000)
+
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          user_id: targetUserId,
+          type: withdrawalDraft.type,
+          amount: numericAmount,
+          total_amount: numericAmount,
+          gateway_network: withdrawalDraft.network,
+          reference_code: refCode,
+          status: withdrawalDraft.status,
+          created_at: isoDate,
+          updated_at: isoDate
+        })
+      })
+
+      if (withdrawalDraft.status === 'approved' && targetUserId) {
+        try {
+          const wRes = await fetch(`${SUPABASE_URL}/rest/v1/wallets?user_id=eq.${targetUserId}`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          })
+          if (wRes.ok) {
+            const wData = await wRes.json()
+            if (Array.isArray(wData) && wData.length > 0) {
+              const curLive = Number(wData[0].live_balance || 0)
+              const curMain = Number(wData[0].main_wallet || curLive)
+              const delta = withdrawalDraft.type === 'withdrawal' ? -numericAmount : numericAmount
+              const nextLive = Math.max(0, curLive + delta)
+              const nextMain = Math.max(0, curMain + delta)
+
+              await fetch(`${SUPABASE_URL}/rest/v1/wallets?user_id=eq.${targetUserId}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({
+                  live_balance: nextLive,
+                  main_wallet: nextMain,
+                  updated_at: new Date().toISOString()
+                })
+              })
+            }
+          }
+        } catch {
+          // silent
+        }
+      }
+
+      const newTxn: Transaction = {
+        id: 'txn-' + Date.now(),
+        userId: targetUserId,
+        userName: targetUser?.name || 'User #' + targetUserId.substring(0, 8),
+        userEmail: targetUser?.email || 'user_' + targetUserId.substring(0, 6) + '@nexsmarkets.com',
+        type: withdrawalDraft.type,
+        amount: numericAmount,
+        network: withdrawalDraft.network,
+        status: withdrawalDraft.status,
+        createdAt: isoDate
+      }
+
+      setTransactions(prev => [newTxn, ...prev])
+      showToast(`Custom ${withdrawalDraft.type} record created for ${targetUser?.name || 'user'}.`, 'ok')
+      setCustomWithdrawalModal(false)
+    } catch {
+      showToast('Failed to insert custom withdrawal record.', 'err')
+    }
+  }
+
   // User Profit / Loss Allocation state (Live trades lose by default unless allocated profit)
   const [userProfitAllocations, setUserProfitAllocations] = useState<Record<string, 'PROFIT' | 'LOSS'>>(() => {
     try {
@@ -2112,7 +2217,10 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
                   <div className="sa-kicker">PAYMENT GATEWAY</div>
                   <h1>Finance & Transactions</h1>
                 </div>
-                <div className="sa-filter-row">
+                <div className="sa-filter-row" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button className="sa-btn sa-btn-primary sa-btn-sm" onClick={() => setCustomWithdrawalModal(true)}>
+                    <Plus size={13} /> Add Custom Withdrawal / Record
+                  </button>
                   <button className={`sa-pill ${txFilter === 'all' ? 'sa-pill-active' : ''}`} onClick={() => setTxFilter('all')}>All</button>
                   <button className={`sa-pill ${txFilter === 'pending' ? 'sa-pill-active' : ''}`} onClick={() => setTxFilter('pending')}>
                     Pending {pendingTxns > 0 && <span className="sa-pill-badge">{pendingTxns}</span>}
@@ -2190,6 +2298,64 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
                   <div className="sa-empty"><CheckCircle2 size={28} color="#1ccf84" /><p>No transactions match this filter.</p></div>
                 )}
               </div>
+
+              {/* Add Custom Withdrawal / Record Modal */}
+              {customWithdrawalModal && (
+                <div className="sa-drawer-overlay" onClick={() => setCustomWithdrawalModal(false)}>
+                  <div className="sa-modal" onClick={e => e.stopPropagation()}>
+                    <div className="sa-drawer-head">
+                      <h3>Add Custom Withdrawal / Transaction</h3>
+                      <button className="sa-icon-btn" onClick={() => setCustomWithdrawalModal(false)}><X size={16} /></button>
+                    </div>
+                    <div className="sa-form-grid">
+                      <label className="sa-label" style={{ gridColumn: '1/-1' }}>Select Target Account
+                        <select className="sa-input" value={withdrawalDraft.userId} onChange={e => setWithdrawalDraft(p => ({ ...p, userId: e.target.value }))}>
+                          <option value="">-- Select Client Account --</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.name} ({u.email}) — Balance: ${u.balance.toFixed(2)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="sa-label">Transaction Type
+                        <select className="sa-input" value={withdrawalDraft.type} onChange={e => setWithdrawalDraft(p => ({ ...p, type: e.target.value as any }))}>
+                          <option value="withdrawal">Withdrawal</option>
+                          <option value="deposit">Deposit</option>
+                        </select>
+                      </label>
+                      <label className="sa-label">Amount (USD)
+                        <input className="sa-input" type="number" min="1" step="1" value={withdrawalDraft.amount} onChange={e => setWithdrawalDraft(p => ({ ...p, amount: e.target.value }))} />
+                      </label>
+                      <label className="sa-label">Payment Method / Network
+                        <select className="sa-input" value={withdrawalDraft.network} onChange={e => setWithdrawalDraft(p => ({ ...p, network: e.target.value }))}>
+                          <option value="MPESA">M-Pesa Express</option>
+                          <option value="USDT-TRC20">USDT (TRC-20)</option>
+                          <option value="BTC">Bitcoin (BTC)</option>
+                          <option value="ETH">Ethereum (ERC-20)</option>
+                          <option value="BANK_TRANSFER">Bank Wire Transfer</option>
+                          <option value="PAYPAL">PayPal</option>
+                        </select>
+                      </label>
+                      <label className="sa-label">Status
+                        <select className="sa-input" value={withdrawalDraft.status} onChange={e => setWithdrawalDraft(p => ({ ...p, status: e.target.value as any }))}>
+                          <option value="approved">Approved / Completed</option>
+                          <option value="pending">Pending</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </label>
+                      <label className="sa-label">Custom Date & Time
+                        <input className="sa-input" type="datetime-local" value={withdrawalDraft.timestamp} onChange={e => setWithdrawalDraft(p => ({ ...p, timestamp: e.target.value }))} />
+                      </label>
+                      <label className="sa-label">Reference / TxID
+                        <input className="sa-input" placeholder="WD984210" value={withdrawalDraft.refCode} onChange={e => setWithdrawalDraft(p => ({ ...p, refCode: e.target.value }))} />
+                      </label>
+                    </div>
+                    <div className="sa-modal-actions">
+                      <button className="sa-btn sa-btn-primary" onClick={handleCreateCustomWithdrawal}><Plus size={14} /> Add Transaction Record</button>
+                      <button className="sa-btn sa-btn-ghost" onClick={() => setCustomWithdrawalModal(false)}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
