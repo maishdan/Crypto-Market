@@ -64,6 +64,23 @@ const ACTIVITY = [
 
 type StkStep = 'form' | 'pushing' | 'waiting' | 'verify' | 'done' | 'error'
 
+const COUNTRY_BANKS: Record<string, string[]> = {
+  Kenya: ['Equity Bank Kenya', 'KCB Bank Kenya', 'Co-operative Bank of Kenya', 'NCBA Bank', 'Absa Bank Kenya', 'Standard Chartered Kenya', 'Diamond Trust Bank (DTB)', 'I&M Bank', 'Stanbic Bank Kenya', 'Family Bank', 'Other Bank'],
+  Tanzania: ['CRDB Bank', 'NMB Bank', 'NBC Tanzania', 'Stanbic Bank Tanzania', 'Absa Bank Tanzania', 'Exim Bank Tanzania', 'Other Bank'],
+  Uganda: ['Stanbic Bank Uganda', 'Centenary Bank', 'dfcu Bank', 'Equity Bank Uganda', 'Absa Bank Uganda', 'Bank of Baroda Uganda', 'Other Bank'],
+  Rwanda: ['Bank of Kigali', 'I&M Bank Rwanda', 'Equity Bank Rwanda', 'Cogebanque', 'BPR Bank Rwanda', 'Other Bank'],
+  Nigeria: ['Access Bank', 'GTBank (Guaranty Trust)', 'Zenith Bank', 'First Bank of Nigeria', 'UBA (United Bank for Africa)', 'Fidelity Bank', 'Kuda Bank', 'OPay', 'Palmpay', 'Other Bank'],
+  Ghana: ['Ecobank Ghana', 'GCB Bank', 'Fidelity Bank Ghana', 'Stanbic Bank Ghana', 'CAL Bank', 'Other Bank'],
+  'South Africa': ['Standard Bank', 'FNB (First National Bank)', 'ABSA', 'Nedbank', 'Capitec Bank', 'Discovery Bank', 'TymeBank', 'Other Bank'],
+  'United States': ['Chase Bank', 'Bank of America', 'Wells Fargo', 'CitiBank', 'Capital One', 'US Bank', 'PNC Bank', 'TD Bank', 'Other Bank'],
+  'United Kingdom': ['Barclays', 'HSBC UK', 'Lloyds Bank', 'NatWest', 'Santander UK', 'Revolut', 'Monzo', 'Other Bank'],
+  'United Arab Emirates': ['Emirates NBD', 'First Abu Dhabi Bank (FAB)', 'ADCB', 'Dubai Islamic Bank', 'Mashreq Bank', 'RAKBANK', 'Other Bank'],
+  India: ['State Bank of India (SBI)', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Mahindra Bank', 'Other Bank'],
+  Germany: ['Deutsche Bank', 'Commerzbank', 'DZ Bank', 'N26', 'Sparkasse', 'Other Bank'],
+  Japan: ['MUFG Bank', 'Sumitomo Mitsui (SMBC)', 'Mizuho Bank', 'Japan Post Bank', 'Other Bank'],
+  Other: ['International Commercial Bank', 'HSBC', 'Citibank', 'Standard Chartered', 'Other Bank']
+}
+
 export default function FundsHub({
   wallets, onTransfer, onDepositRequest, onWithdrawalRequest, adminAddresses, showNotice,
   minDepositUSD = 10, minDepositKES = 100, minWithdrawalUSD = 10,
@@ -76,10 +93,17 @@ export default function FundsHub({
   const [copied, setCopied] = useState(false)
   const [hideBalance, setHideBalance] = useState(false)
 
-  // Withdraw
+  // Withdraw States
   const [wAmt, setWAmt] = useState('')
   const [wAddr, setWAddr] = useState('')
-  const [wGateway, setWGateway] = useState('USDT-TRC20')
+  const [wGateway, setWGateway] = useState('MPESA')
+  const [wMpPhone, setWMpPhone] = useState('')
+  const [bankCountry, setBankCountry] = useState('Kenya')
+  const [bankName, setBankName] = useState('Equity Bank Kenya')
+  const [bankCustomName, setBankCustomName] = useState('')
+  const [bankAccountNum, setBankAccountNum] = useState('')
+  const [bankAccountName, setBankAccountName] = useState('')
+  const [bankSwift, setBankSwift] = useState('')
 
   // Transfer
   const [tFrom, setTFrom] = useState<keyof WalletBalances>('main')
@@ -173,11 +197,28 @@ export default function FundsHub({
 
   const confirmWithdraw = () => {
     const amt = parseFloat(wAmt)
-    if (!amt || amt < minWithdrawalUSD) { showNotice(`Minimum withdrawal is $${minWithdrawalUSD}.`); return }
-    if (wallets.main < amt) { showNotice('Insufficient main balance.'); return }
-    if (!wAddr.trim()) { showNotice('Enter destination wallet address.'); return }
-    onWithdrawalRequest?.(amt, wGateway, wAddr)
-    setWAmt(''); setWAddr('')
+    if (!amt || amt < minWithdrawalUSD) { showNotice(`Minimum withdrawal is $${minWithdrawalUSD} USD.`); return }
+    if (wallets.main < amt) { showNotice('Insufficient wallet balance.'); return }
+
+    let finalGateway = wGateway
+    let finalAddress = wAddr
+
+    if (wGateway === 'MPESA') {
+      if (!wMpPhone || wMpPhone.length < 8) { showNotice('Please enter a valid M-Pesa phone number.'); return }
+      finalGateway = 'M-Pesa Express'
+      finalAddress = `M-Pesa Phone: ${wMpPhone}`
+    } else if (wGateway === 'BANK_WIRE') {
+      const selectedBank = bankName === 'Other Bank' ? (bankCustomName || 'Other Bank') : bankName
+      if (!bankAccountNum || !bankAccountName) { showNotice('Please enter Bank Account Number and Account Holder Name.'); return }
+      finalGateway = 'Bank Wire'
+      finalAddress = `Country: ${bankCountry} | Bank: ${selectedBank} | Acc No: ${bankAccountNum} | Holder: ${bankAccountName} | SWIFT: ${bankSwift || 'N/A'}`
+    } else {
+      if (!wAddr) { showNotice('Please enter destination wallet address.'); return }
+    }
+
+    onWithdrawalRequest?.(amt, finalGateway, finalAddress)
+    showNotice(`✅ Withdrawal request of $${fmt(amt)} submitted via ${finalGateway}!`)
+    setWAmt(''); setWAddr(''); setWMpPhone(''); setBankAccountNum(''); setBankAccountName(''); setBankSwift('')
   }
 
   const confirmTransfer = () => {
@@ -240,33 +281,23 @@ export default function FundsHub({
             </div>
           </div>
 
-          {/* ── LEFT: CHOOSE WALLET ──────────────────────────────────────── */}
+          {/* ── LEFT: WALLET ──────────────────────────────────────── */}
           <div className="th-panel">
-            <div className="th-panel-title">CHOOSE WALLET</div>
+            <div className="th-panel-title">PRIMARY WALLET</div>
             <div className="th-wallet-list">
-              {(Object.keys(wallets) as (keyof WalletBalances)[]).map(k => {
-                const m = WALLET_META[k]
-                return (
-                  <button
-                    key={k}
-                    className={`th-wallet-item ${selectedWallet === k ? 'th-wallet-selected' : ''}`}
-                    onClick={() => setSelectedWallet(k)}
-                    style={{ '--wc': m.color } as React.CSSProperties}
-                  >
-                    <div className="th-wallet-radio">
-                      <div className="th-wallet-radio-inner" />
-                    </div>
-                    {selectedWallet === k && (
-                      <div className="th-wallet-check"><CheckCircle2 size={14} color={m.color} /></div>
-                    )}
-                    <div className="th-wallet-info">
-                      <div className="th-wallet-name">{m.label}</div>
-                      <div className="th-wallet-sub">{m.sub}</div>
-                    </div>
-                    <ChevronDown size={12} style={{ marginLeft: 'auto', opacity: 0.4 }} />
-                  </button>
-                )
-              })}
+              <div
+                className="th-wallet-item th-wallet-selected"
+                style={{ '--wc': '#00e5ff' } as React.CSSProperties}
+              >
+                <div className="th-wallet-radio">
+                  <div className="th-wallet-radio-inner" />
+                </div>
+                <div className="th-wallet-check"><CheckCircle2 size={14} color="#00e5ff" /></div>
+                <div className="th-wallet-info">
+                  <div className="th-wallet-name">Main Wallet</div>
+                  <div className="th-wallet-sub">Primary Treasury Account</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -492,31 +523,88 @@ export default function FundsHub({
           <div className="th-avail-row">
             Available Balance: <strong style={{color:'#00e5ff'}}>${fmt(wallets.main)}</strong>
           </div>
+
           <div className="th-net-chips">
-            {['USDT-TRC20','BTC','ETH','BANK_WIRE'].map(g => (
-              <button key={g} className={`th-net-chip ${wGateway===g?'th-net-chip-on':''}`} onClick={() => setWGateway(g)}>
-                {g === 'BANK_WIRE' ? 'Bank Wire' : g}
+            {['MPESA', 'USDT-TRC20', 'BTC', 'ETH', 'BANK_WIRE'].map(g => (
+              <button key={g} className={`th-net-chip ${wGateway === g ? 'th-net-chip-on' : ''}`} onClick={() => setWGateway(g)}>
+                {g === 'MPESA' ? '📱 M-Pesa' : g === 'BANK_WIRE' ? '🏦 Bank Wire' : g}
               </button>
             ))}
           </div>
-          <label className="th-field-label">Destination Address
-            <input className="th-input th-mono" placeholder="Paste wallet address…" value={wAddr} onChange={e => setWAddr(e.target.value)}/>
-          </label>
+
+          {/* M-PESA WITHDRAWAL FORM */}
+          {wGateway === 'MPESA' && (
+            <label className="th-field-label">M-Pesa Phone Number
+              <div className="th-input-wrap">
+                <span className="th-input-pre">🇰🇪</span>
+                <input className="th-input" type="tel" placeholder="07XXXXXXXX" value={wMpPhone} onChange={e => setWMpPhone(e.target.value)} />
+              </div>
+            </label>
+          )}
+
+          {/* BANK WIRE WITHDRAWAL FORM */}
+          {wGateway === 'BANK_WIRE' && (
+            <div style={{ display: 'grid', gap: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+              <label className="th-field-label">Select Country
+                <select className="th-input" value={bankCountry} onChange={e => {
+                  const country = e.target.value
+                  setBankCountry(country)
+                  const bankList = COUNTRY_BANKS[country] || COUNTRY_BANKS['Other']
+                  setBankName(bankList[0])
+                }}>
+                  {Object.keys(COUNTRY_BANKS).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+
+              <label className="th-field-label">Select Bank Name
+                <select className="th-input" value={bankName} onChange={e => setBankName(e.target.value)}>
+                  {(COUNTRY_BANKS[bankCountry] || COUNTRY_BANKS['Other']).map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </label>
+
+              {bankName === 'Other Bank' && (
+                <label className="th-field-label">Custom Bank Name
+                  <input className="th-input" placeholder="Enter full bank name" value={bankCustomName} onChange={e => setBankCustomName(e.target.value)} />
+                </label>
+              )}
+
+              <label className="th-field-label">Account Number / IBAN
+                <input className="th-input th-mono" placeholder="Enter bank account number or IBAN" value={bankAccountNum} onChange={e => setBankAccountNum(e.target.value)} />
+              </label>
+
+              <label className="th-field-label">Account Holder Full Name
+                <input className="th-input" placeholder="Enter account holder name" value={bankAccountName} onChange={e => setBankAccountName(e.target.value)} />
+              </label>
+
+              <label className="th-field-label">SWIFT / BIC Code (Optional)
+                <input className="th-input th-mono" placeholder="e.g. EQUKENNA" value={bankSwift} onChange={e => setBankSwift(e.target.value)} />
+              </label>
+            </div>
+          )}
+
+          {/* CRYPTO DESTINATION ADDRESS */}
+          {wGateway !== 'MPESA' && wGateway !== 'BANK_WIRE' && (
+            <label className="th-field-label">Destination Wallet Address
+              <input className="th-input th-mono" placeholder="Paste crypto wallet address…" value={wAddr} onChange={e => setWAddr(e.target.value)} />
+            </label>
+          )}
+
           <div className="th-quick-row">
-            {[minWithdrawalUSD,50,100,500].filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b).map(q => (
-              <button key={q} className={`th-quick ${wAmt===String(q)?'th-quick-on':''}`} onClick={() => setWAmt(String(q))}>
+            {[minWithdrawalUSD, 50, 100, 500].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b).map(q => (
+              <button key={q} className={`th-quick ${wAmt === String(q) ? 'th-quick-on' : ''}`} onClick={() => setWAmt(String(q))}>
                 ${q}
               </button>
             ))}
             <button className="th-quick" onClick={() => setWAmt(wallets.main.toFixed(2))}>MAX</button>
           </div>
+
           <div className="th-input-wrap">
             <span className="th-input-pre">$</span>
-            <input className="th-input" type="number" min={minWithdrawalUSD} placeholder="0.00" value={wAmt} onChange={e => setWAmt(e.target.value)}/>
+            <input className="th-input" type="number" min={minWithdrawalUSD} placeholder="0.00" value={wAmt} onChange={e => setWAmt(e.target.value)} />
           </div>
-          <div className="th-hint" style={{marginTop:4}}><AlertCircle size={11}/> Processed within 24 hours after admin review.</div>
-          <button className="th-proceed-btn th-proceed-full th-proceed-red" onClick={confirmWithdraw} style={{marginTop:16}}>
-            <ArrowUpFromLine size={15}/> SUBMIT WITHDRAWAL
+
+          <button className="th-proceed-btn th-proceed-full th-proceed-red" onClick={confirmWithdraw} style={{ marginTop: 16 }}>
+            <ArrowUpFromLine size={15} /> SUBMIT WITHDRAWAL
           </button>
         </div>
       )}
