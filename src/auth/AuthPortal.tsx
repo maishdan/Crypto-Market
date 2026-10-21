@@ -123,9 +123,9 @@ function LiveTicker() {
 function NexsLogo() {
   return (
     <img
-      src="/logo.jpeg"
-      alt="NEXSMARKETS Logo"
-      style={{ width: 38, height: 38, borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(0, 229, 255, 0.3)' }}
+      src="/global.png"
+      alt="Global Pip Logo"
+      style={{ width: 38, height: 38, borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(240, 185, 11, 0.5)', boxShadow: '0 0 12px rgba(0, 136, 255, 0.4)' }}
     />
   )
 }
@@ -305,8 +305,8 @@ export default function AuthPortal({ onLogin, onSignup, onDemo, onGoogle, onForg
             <div className="nx-brand">
               <NexsLogo />
               <div>
-                <div className="nx-brand-name">NEXSMARKETS</div>
-                <div className="nx-brand-tag">Next-Generation Trading Terminal</div>
+                <div className="nx-brand-name">GLOBAL PIP</div>
+                <div className="nx-brand-tag">Next-Generation Global Trading Terminal</div>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ export default function AuthPortal({ onLogin, onSignup, onDemo, onGoogle, onForg
               <div className="nx-form-wrap">
                 <div className="nx-form-head">
                   <div className="nx-form-kicker">WELCOME BACK</div>
-                  <h2>Sign in to NEXSMARKETS</h2>
+                  <h2>Sign in to Global Pip</h2>
                   <p>Access your trading dashboard, portfolio &amp; live positions.</p>
                 </div>
 
@@ -436,7 +436,7 @@ export default function AuthPortal({ onLogin, onSignup, onDemo, onGoogle, onForg
               <div className="nx-form-wrap">
                 <div className="nx-form-head">
                   <div className="nx-form-kicker">NEW ACCOUNT</div>
-                  <h2>Join NEXSMARKETS</h2>
+                  <h2>Join Global Pip</h2>
                   <p>Create your trading account in under 2 minutes.</p>
                 </div>
 
@@ -666,6 +666,24 @@ export default function AuthPortal({ onLogin, onSignup, onDemo, onGoogle, onForg
             </div>
           </div>
         </div>
+
+        {/* FULL SCREEN LOADING OVERLAY FOR AUTH ACTIONS */}
+        {(isSubmitting || forgotSubmitting) && (
+          <div className="global-loading-screen" aria-live="polite">
+            <img
+              src="/loading.gif"
+              alt="Authenticating..."
+              className="global-loading-gif"
+            />
+            <div className="global-loading-text">
+              <Sparkles size={18} color="#f0b90b" />
+              <span>Connecting to Global Pip...</span>
+            </div>
+            <div className="global-loading-progress-bar">
+              <div className="global-loading-progress-fill" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── FORGOT PASSWORD MODAL ──────────────────────────────────────── */}

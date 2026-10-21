@@ -422,12 +422,27 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
     }
   }, [section])
 
+  const [adminLoading, setAdminLoading] = useState(false)
+
+  const changeAdminSection = (nextSec: AdminSection) => {
+    if (nextSec === section) return
+    setAdminLoading(true)
+    setSection(nextSec)
+    setTimeout(() => {
+      setAdminLoading(false)
+    }, 1000)
+  }
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#admin/', '').replace('#', '').trim() as AdminSection
       const validSections: AdminSection[] = ['overview', 'users', 'kyc', 'finance', 'security', 'admins', 'audit', 'settings', 'support', 'gateway']
       if (validSections.includes(hash)) {
+        setAdminLoading(true)
         setSection(hash)
+        setTimeout(() => {
+          setAdminLoading(false)
+        }, 1000)
       }
     }
     window.addEventListener('hashchange', handleHashChange)
@@ -1671,8 +1686,8 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
       <aside className="sa-sidebar">
         <div className="sa-sidebar-top">
           <div className="sa-brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/logo.jpeg" alt="NEXSMARKETS Admin Logo" style={{ width: 28, height: 28, borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
-            {!sidebarCollapsed && <span>NEXSMARKETS <strong>ADMIN</strong></span>}
+            <img src="/global.png" alt="Global Pip Admin Logo" style={{ width: 28, height: 28, borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
+            {!sidebarCollapsed && <span>GLOBAL PIP <strong>ADMIN</strong></span>}
           </div>
           <button className="sa-collapse-btn" onClick={() => setSidebarCollapsed(p => !p)} title="Toggle sidebar">
             {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} />}
@@ -1687,7 +1702,7 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
               <button
                 key={item.id}
                 className={`sa-nav-item ${section === item.id ? 'sa-nav-active' : ''}`}
-                onClick={() => setSection(item.id)}
+                onClick={() => changeAdminSection(item.id)}
                 title={sidebarCollapsed ? item.label : undefined}
               >
                 <span className="sa-nav-icon"><Icon size={17} /></span>
@@ -2992,6 +3007,28 @@ export default function AdminDashboard({ currentUser }: Props = {}) {
                 <DollarSign size={14} /> Apply Adjustment
               </button>
               <button className="sa-btn sa-btn-ghost" onClick={() => setBalanceModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Admin Navigation Loading Overlay ───────────────────────────────── */}
+      {adminLoading && (
+        <div className="global-loading-screen" aria-live="polite">
+          <div className="global-loading-content">
+            <img
+              src="/loading.gif"
+              alt="Welcome to Global Pip Crypto market"
+              className="global-loading-gif"
+            />
+            <h2 className="global-loading-welcome">
+              Welcome to Global Pip Crypto market
+            </h2>
+            <p className="global-loading-subtext">
+              Loading Global Pip Operations...
+            </p>
+            <div className="global-loading-progress-bar">
+              <div className="global-loading-progress-fill" />
             </div>
           </div>
         </div>

@@ -810,7 +810,12 @@ export default function App() {
       const hash = window.location.hash.replace('#', '').trim() as View
       const validViews: View[] = ['overview', 'assets', 'tiers', 'synthetic', 'institutions', 'settings', 'kyc_hub', 'profile', 'wallet', 'funds', 'help', 'positions', 'verification', 'history']
       if (validViews.includes(hash)) {
+        setLoadingMessage(getLoadingMessage(hash))
+        setPageLoading(true)
         setActiveView(hash)
+        setTimeout(() => {
+          setPageLoading(false)
+        }, 1200)
       }
     }
     window.addEventListener('hashchange', handleHashChange)
@@ -1743,24 +1748,64 @@ export default function App() {
   const [authSubmitting, setAuthSubmitting] = useState(false)
 
   const [pageLoading, setPageLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [loadingMessage, setLoadingMessage] = useState('Welcome to Global Pip Crypto market')
 
-  // Navigation Handler - Fast, smooth 450ms page transition loader
+  const getLoadingMessage = (targetView: View | 'initial') => {
+    switch (targetView) {
+      case 'initial':
+      case 'overview':
+        return 'Welcome to Global Pip Crypto market'
+      case 'profile':
+        return 'Loading Profile page...'
+      case 'funds':
+      case 'wallet':
+        return 'Loading Wallet & Treasury Hub...'
+      case 'synthetic':
+      case 'assets':
+        return 'Loading Synthetic Trading Terminal...'
+      case 'tiers':
+        return 'Loading Investments & Yield Tiers...'
+      case 'history':
+        return 'Loading Ledger & Transaction History...'
+      case 'positions':
+        return 'Loading Positions & Executed Contracts...'
+      case 'kyc_hub':
+      case 'verification':
+        return 'Loading Identity Verification Hub...'
+      case 'help':
+        return 'Loading Help Center & Priority Support...'
+      case 'settings':
+        return 'Loading Admin Operations...'
+      default:
+        return 'Welcome to Global Pip Crypto market'
+    }
+  }
+
+  useEffect(() => {
+    setLoadingMessage(getLoadingMessage('initial'))
+    const timer = setTimeout(() => {
+      setInitialLoading(false)
+    }, 7000) // Exactly 7 seconds initial loading screen as requested
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Navigation Handler - Smooth page transition loader across all pages
   const changeView = (nextView: View) => {
-    if (nextView === activeView) return
-
     // Protection: Admin Dashboard is reserved for Admin users
     if (nextView === 'settings' && user?.role !== 'admin') {
       showNotice('🔒 Access Restricted: Admin Dashboard requires an Administrator account.')
       return
     }
 
+    setLoadingMessage(getLoadingMessage(nextView))
     setPageLoading(true)
     setPreviousView(activeView)
     setActiveView(nextView)
     setMobileMenuOpen(false)
     setTimeout(() => {
       setPageLoading(false)
-    }, 450)
+    }, 1200)
   }
 
   const goBack = () => {
@@ -4559,8 +4604,8 @@ export default function App() {
       {/* COMPACT/EXPANDABLE SIDEBAR */}
       <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
         <a className="brand" href="#synthetic" onClick={(e) => { e.preventDefault(); changeView('synthetic') }}>
-          <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 32, height: 32, borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
-          <span className="brand-text">NEXSMARKETS</span>
+          <img src="/global.png" alt="Global Pip Logo" style={{ width: 32, height: 32, borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
+          <span className="brand-text">GLOBAL PIP</span>
         </a>
 
         <nav className="primary-nav">
@@ -4906,8 +4951,8 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' }}>
             {/* Brand Left */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 22, height: 22, borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff' }}>NEXSMARKETS PRO TERMINAL</span>
+              <img src="/global.png" alt="Global Pip Logo" style={{ width: 22, height: 22, borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff' }}>GLOBAL PIP PRO TERMINAL</span>
             </div>
 
             {/* Middle Status & Active Positions Badge */}
@@ -5173,21 +5218,25 @@ export default function App() {
         </div>
       )}
 
-      {pageLoading && (
-        <div className="page-transition-loader" aria-live="polite">
-          <div className="page-loader-brand">
-            <img src="/logo.jpeg" alt="NEXSMARKETS Logo" style={{ width: 44, height: 44, borderRadius: '10px', objectFit: 'cover' }} />
+      {/* GLOBAL RESPONSIVE CENTERED LOADING SCREEN WITH LOADING.GIF */}
+      {(initialLoading || pageLoading || authLoading) && (
+        <div className="global-loading-screen" aria-live="polite">
+          <div className="global-loading-content">
+            <img
+              src="/loading.gif"
+              alt="Welcome to Global Pip Crypto market"
+              className="global-loading-gif"
+            />
+            <h2 className="global-loading-welcome">
+              Welcome to Global Pip Crypto market
+            </h2>
+            <p className="global-loading-subtext">
+              Initializing Ultra-Low Latency Trading Engine &amp; Liquidity Pools...
+            </p>
+            <div className="global-loading-progress-bar">
+              <div className="global-loading-progress-fill" />
+            </div>
           </div>
-
-          {/* Clockwise Colliding Dot Circle Spinner */}
-          <div className="dot-chase-spinner">
-            {Array.from({ length: 12 }, (_, i) => (
-              <div key={i} className="dot-circle-item" style={{ transform: 'rotate(' + (i * 30) + 'deg)' }} />
-            ))}
-          </div>
-
-          <span className="page-loader-text">Loading NEXSMARKETS Terminal...</span>
-          <div className="page-loader-bar"><div className="page-loader-progress"></div></div>
         </div>
       )}
 
