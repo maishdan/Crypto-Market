@@ -4465,21 +4465,67 @@ export default function App() {
 
   if (!user) {
     return (
-      <AuthPortal
-        onLogin={handleAuthLogin}
-        onSignup={handleAuthSignup}
-        onDemo={handleAuthDemo}
-        onGoogle={handleAuthGoogle}
-        onForgot={handleAuthForgot}
-        isSubmitting={authSubmitting}
-        notice={notice}
-      />
+      <>
+        {(initialLoading || pageLoading || authLoading) && (
+          <div className="global-loading-screen" aria-live="polite">
+            <div className="global-loading-content">
+              <img
+                src="/loading.gif"
+                alt={loadingMessage}
+                className="global-loading-gif"
+              />
+              <h2 className="global-loading-welcome">
+                {loadingMessage}
+              </h2>
+              <p className="global-loading-subtext">
+                Initializing Ultra-Low Latency Trading Engine &amp; Liquidity Pools...
+              </p>
+              <div className="global-loading-progress-bar">
+                <div className="global-loading-progress-fill" />
+              </div>
+            </div>
+          </div>
+        )}
+        <AuthPortal
+          onLogin={handleAuthLogin}
+          onSignup={handleAuthSignup}
+          onDemo={handleAuthDemo}
+          onGoogle={handleAuthGoogle}
+          onForgot={handleAuthForgot}
+          isSubmitting={authSubmitting}
+          notice={notice}
+        />
+      </>
     )
   }
 
   // IF LOGGED-IN USER IS AN ADMIN: Render 100% Standalone Full Admin Dashboard
   if (user.role === 'admin') {
-    return <AdminDashboard currentUser={user} />
+    return (
+      <>
+        {(initialLoading || pageLoading || authLoading) && (
+          <div className="global-loading-screen" aria-live="polite">
+            <div className="global-loading-content">
+              <img
+                src="/loading.gif"
+                alt={loadingMessage}
+                className="global-loading-gif"
+              />
+              <h2 className="global-loading-welcome">
+                {loadingMessage}
+              </h2>
+              <p className="global-loading-subtext">
+                Loading Global Pip Admin Operations...
+              </p>
+              <div className="global-loading-progress-bar">
+                <div className="global-loading-progress-fill" />
+              </div>
+            </div>
+          </div>
+        )}
+        <AdminDashboard currentUser={user} />
+      </>
+    )
   }
 
   return (
